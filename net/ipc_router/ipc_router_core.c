@@ -509,6 +509,7 @@ struct rr_packet *clone_pkt(struct rr_packet *pkt)
 		return NULL;
 	}
 	skb_queue_head_init(pkt_fragment_q);
+	kref_init(&cloned_pkt->ref);
 
 	skb_queue_walk(pkt->pkt_fragment_q, temp_skb) {
 		cloned_skb = skb_clone(temp_skb, GFP_KERNEL);
@@ -563,6 +564,7 @@ struct rr_packet *create_pkt(struct sk_buff_head *data)
 		}
 		skb_queue_head_init(pkt->pkt_fragment_q);
 	}
+	kref_init(&pkt->ref);
 	return pkt;
 }
 

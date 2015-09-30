@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/msm_ipc.h>
 #include <linux/ipc_router.h>
+#include <linux/kref.h>
 
 #define IPC_ROUTER_XPRT_EVENT_DATA  1
 #define IPC_ROUTER_XPRT_EVENT_OPEN  2
@@ -84,12 +85,14 @@ union rr_header {
  * @hdr: Header information extracted from or prepended to a packet.
  * @pkt_fragment_q: Queue of SKBs containing payload.
  * @length: Length of data in the chain of SKBs
+ * @ref: Reference count for the packet.
  */
 struct rr_packet {
 	struct list_head list;
 	struct rr_header_v1 hdr;
 	struct sk_buff_head *pkt_fragment_q;
 	uint32_t length;
+	struct kref ref;
 };
 
 /**
