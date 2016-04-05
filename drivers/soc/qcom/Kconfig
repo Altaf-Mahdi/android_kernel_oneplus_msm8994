@@ -619,6 +619,11 @@ config MSM_CORE_CTL
 	help
 	  Add support for the Qualcomm core control module
 
+config ONEPLUS_HCUBE
+	tristate "Proprietary Core control drivers, tuned by Oneplus"
+	help
+	  Add support for OnePlus modified Qualcomm core control module
+
 config MSM_CORE_CTL_HELPER
 	tristate "Core control helper functions for dynamically hotplug CPUs"
 	help
