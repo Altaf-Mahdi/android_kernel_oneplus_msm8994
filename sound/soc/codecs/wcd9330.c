@@ -82,11 +82,6 @@ enum {
 #define SLIM_BW_CLK_GEAR_9 6200000
 #define SLIM_BW_UNVOTE 0
 
-/* Black Box */
-//weihung[NBQM-590]:Add BBOX log
-#define BBOX_AUDIOCODEC_SLIMBUS_RX_FAIL do {printk("BBox;%s: slimbus rx fail\n", __func__); printk("BBox::UEC;3::0\n");} while (0);
-#define BBOX_AUDIOCODEC_SLIMBUS_TX_FAIL do {printk("BBox;%s: slimbus tx fail\n", __func__); printk("BBox::UEC;3::0\n");} while (0);
-
 static int cpe_debug_mode;
 module_param(cpe_debug_mode, int,
 	     S_IRUGO | S_IWUSR | S_IWGRP);
@@ -6491,8 +6486,6 @@ static int tomtom_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 						      dai->grph);
 			pr_debug("%s: Disconnect RX port, ret = %d\n",
 				 __func__, ret);
-			//weihung[NBQM-590]:Add BBOX log
-			BBOX_AUDIOCODEC_SLIMBUS_RX_FAIL;
 		}
 		break;
 	}
@@ -6635,8 +6628,6 @@ static int __tomtom_codec_enable_slimtx(struct snd_soc_codec *codec,
 			dev_dbg(codec->dev,
 				"%s: Disconnect TX port, ret = %d\n",
 				 __func__, ret);
-			//weihung[NBQM-590]:Add BBOX log
-			BBOX_AUDIOCODEC_SLIMBUS_TX_FAIL;
 		}
 		break;
 	}
