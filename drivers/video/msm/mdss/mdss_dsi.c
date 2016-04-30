@@ -31,10 +31,6 @@
 #include "mdss_debug.h"
 #include "mdss_livedisplay.h"
 
-/*FIH, Hubert, 20151127, use lcm regs (DBh) to work with TP FW upgrade {*/
-extern ssize_t panel_print_status2(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
-/*} FIH, Hubert, 20151127, use lcm regs (DBh) to work with TP FW upgrade*/
-
 #define XO_CLK_RATE	19200000
 
 static struct dsi_drv_cm_data shared_ctrl_data;
@@ -237,9 +233,7 @@ end:
 static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
-	unsigned int i = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-	int i = 0;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -710,19 +704,6 @@ static int mdss_dsi_update_panel_config(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	return ret;
 }
 
-//JYLee added to force lp11 before reset to match spec 20160409 {
-void mdss_dsi_force_lp11(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
-{
-	u32 tmp;
-
-	tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
-	tmp &= ~(1<<28);
-	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
-	wmb();
-	pr_err("Force lp11\n");
-}
-//JYLee added to force lp11 before reset to match spec 20160409 }
-
 int mdss_dsi_on(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -925,12 +906,6 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 		if (mdss_dsi_is_te_based_esd(ctrl_pdata))
 			enable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
 	}
-
-// FIH, Hubert, 20151127, use lcm regs (DBh) to work with TP FW upgrade {
-	panel_print_status2(ctrl_pdata);
-//} FIH, Hubert, 20151127, use lcm regs (DBh) to work with TP FW upgrade
-
-	mdss_livedisplay_update(ctrl_pdata, MODE_UPDATE_ALL);
 
 error:
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
@@ -2153,18 +2128,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			pr_err("%s:%d, Disp_en gpio not specified\n",
 					__func__, __LINE__);
 	}
-
-//<<[NBQ-16] EricHsieh, Implement the OTM1926C CTC 5.2" panel 	
-	if (ctrl_pdata->disp_ldo_gpio <= 0) {
-		ctrl_pdata->disp_ldo_gpio = of_get_named_gpio(
-			ctrl_pdev->dev.of_node,
-			"qcom,platform-ldo-gpio", 0);
-
-		if (!gpio_is_valid(ctrl_pdata->disp_en_gpio))
-			pr_err("%s:%d, Disp_en gpio not specified\n",
-					__func__, __LINE__);
-	}
-//>>[NBQ-16] EricHsieh,END
 
 	ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 		"qcom,platform-te-gpio", 0);

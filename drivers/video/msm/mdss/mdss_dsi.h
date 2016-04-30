@@ -151,10 +151,6 @@ enum dsi_pm_type {
 #define DSI_CMD_DST_FORMAT_RGB565	6
 #define DSI_CMD_DST_FORMAT_RGB666	7
 #define DSI_CMD_DST_FORMAT_RGB888	8
-#ifdef VENDOR_EDIT  //qualcomm modify for lcd crash 2015-04-18
-
-#define DSI_INTR_DESJEW_MASK			BIT(31)
-#endif
 
 #define DSI_INTR_DESJEW_MASK			BIT(31)
 #define DSI_INTR_DYNAMIC_REFRESH_MASK		BIT(29)
@@ -169,18 +165,6 @@ enum dsi_pm_type {
 #define DSI_INTR_CMD_MDP_DONE		BIT(8)
 #define DSI_INTR_CMD_DMA_DONE_MASK	BIT(1)
 #define DSI_INTR_CMD_DMA_DONE		BIT(0)
-
-#ifdef VENDOR_EDIT  //qualcomm modify for lcd crash 2015-04-18
-#define DSI_INTR_MASK_ALL	\
-		(DSI_INTR_DESJEW_MASK | \
-		DSI_INTR_DYNAMIC_REFRESH_MASK | \
-		DSI_INTR_ERROR_MASK | \
-		DSI_INTR_BTA_DONE_MASK | \
-		DSI_INTR_VIDEO_DONE_MASK | \
-		DSI_INTR_CMD_MDP_DONE_MASK | \
-		DSI_INTR_CMD_DMA_DONE_MASK)
-#endif
-
 /* Update this if more interrupt masks are added in future chipsets */
 #define DSI_INTR_TOTAL_MASK		0x2222AA02
 
@@ -387,6 +371,7 @@ struct mdss_dsi_ctrl_pdata {
 	int lcd_tps65132_en;
 	int lcd_tps65132_en_n;
 	#endif
+
 	bool cmd_clk_ln_recovery_en;
 	bool cmd_sync_wait_broadcast;
 	bool cmd_sync_wait_trigger;

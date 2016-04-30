@@ -2155,9 +2155,7 @@ static int attach_task_by_pid(struct cgroup *cgrp, u64 pid, bool threadgroup)
 	const struct cred *cred = current_cred(), *tcred;
 	int ret;
 
-	skip_cfs_throttle(1);
 	if (!cgroup_lock_live_group(cgrp)) {
-		skip_cfs_throttle(0);
 		return -ENODEV;
 	}
 
@@ -2234,7 +2232,6 @@ retry_find_task:
 	put_task_struct(tsk);
 out_unlock_cgroup:
 	mutex_unlock(&cgroup_mutex);
-	skip_cfs_throttle(0);
 	return ret;
 }
 

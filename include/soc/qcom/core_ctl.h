@@ -21,5 +21,4 @@ extern struct cpufreq_policy *core_ctl_get_policy(int cpu);
 extern void core_ctl_put_policy(struct cpufreq_policy *policy);
 extern struct device *core_ctl_find_cpu_device(unsigned cpu);
 extern int core_ctl_online_core(unsigned int cpu);
-
 #endif
