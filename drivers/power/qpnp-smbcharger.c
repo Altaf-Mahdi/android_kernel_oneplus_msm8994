@@ -2664,7 +2664,7 @@ out:
 static int ship_mode_write(void *data, u64 val)
 {
 	struct smbchg_chip *chip = data;
-        int ret;
+        int ret = 0;
 
         pr_info("%s val = %llu\n", __func__, val);
         if(0 == val)
@@ -7677,7 +7677,7 @@ static int smbchg_probe(struct spmi_device *spmi)
 	int rc;
 	struct smbchg_chip *chip;
 	struct power_supply *usb_psy;
-	struct qpnp_vadc_chip *vadc_dev = NULL, *vadc_dev_pm8994;
+	struct qpnp_vadc_chip *vadc_dev = NULL, *vadc_dev_pm8994 = NULL;
 
 	usb_psy = power_supply_get_by_name("usb");
 	if (!usb_psy) {

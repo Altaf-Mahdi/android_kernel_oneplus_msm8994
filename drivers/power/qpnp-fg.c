@@ -3693,7 +3693,7 @@ static int fg_batt_profile_init(struct fg_chip *chip)
 	int len;
 	struct device_node *node = chip->spmi->dev.of_node;
 	struct device_node *batt_node, *profile_node;
-	const char *data, *batt_type_str, *old_batt_type;
+	const char *data, *batt_type_str, *old_batt_type = NULL;
 	bool tried_again = false, vbat_in_range, profiles_same;
 	u8 reg = 0;
 
