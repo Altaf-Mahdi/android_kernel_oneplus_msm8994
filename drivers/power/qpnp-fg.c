@@ -4417,7 +4417,7 @@ static int fg_batt_profile_init(struct fg_chip *chip)
 	struct device_node *batt_node, *profile_node;
 /* david.liu@oneplus.tw,20160111  Rebase the fg driver to 8994L */
 #ifdef VENDOR_EDIT
-	const char *data, *batt_type_str, *old_batt_type;
+	const char *data, *batt_type_str, *old_batt_type = NULL;
 #else
 	const char *data, *batt_type_str;
 #endif
