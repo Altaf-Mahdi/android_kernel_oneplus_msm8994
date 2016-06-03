@@ -413,28 +413,22 @@
 			label = "memory_hole";
 		};
 		/*#ifdef VENDOR_EDIT*/
-        /*Add by LiWei. The region is used for nv backup,20150325*/
-		nabackup_regions: nvbackup_regions@0 {
+		nvbackup_regions: nvbackup_regions@0 {
 			linux,reserve-contiguous-region;
-			oem,reserve-region;//modify by jiachenghui for nv backup
-			//linux,remove-completely;//del by jiachenghui for nv backup
+			oem,reserve-region;
 			reg = <0 0x06200000 0 0x100000>;
 			label = "memory_nvbackup";
 		};
-        /*End by LiWei. The region is used for nv backup, 20150325*/
-		/*#endif  VENDOR_EDIT*/
 		dfps_data_mem: dfps_data_mem@0 {
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			reg = <0 0x03400000 0 0x1000>;
 			label = "dfps_data_mem";
 		};
-/*liyunbing@BSP,20150518 revert MIPI_FB_ADDR to default addr, because we located MDSS issue cause by nvbackup*/
 		cont_splash_mem: cont_splash_mem@0 {
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			reg = <0 0x03401000 0 0x2200000>;
-			//reg = <0 0x83200000  0 0x2200000>;
 			label = "cont_splash_mem";
 		};
 
@@ -487,7 +481,12 @@
 			reg = <0 0xac200000 0 0x00100000>;
 			label = "param_mem";
 		};
-
+		mtp_regions: mtp_regions@0 {
+			linux,reserve-contiguous-region;
+			oem,reserve-region;
+			reg = <0 0xAC400000 0 0x00100000>;
+			label = "memory_mtp";
+		};
 	};
 };
 
@@ -1254,6 +1253,14 @@
 		linux,contiguous-region = <&adsp_mem>;
 	};
 
+	qcom,nvbackup_sharedmem@00000000 {
+		compatible = "qcom,sharedmem-uio";
+		reg = <0x06200000 0x001000000>;
+		reg-names = "nvbackup";
+		qcom,client-id = <0x00000001>;
+		linux,contiguous-region = <&nvbackup_regions>;
+	};
+
 	sdhc_1: sdhci@f9824900 {
 		compatible = "qcom,sdhci-msm";
 		reg = <0xf9824900 0x1a0>, <0xf9824000 0x800>;
@@ -1515,7 +1522,7 @@
 		*/
 		interrupts = <0 106 0>/*, <0 239 0>*/;
 
-		spi-max-frequency = <9600000>;
+		spi-max-frequency = <4800000>;
 		
 		/* //changhua
 		qcom,gpio-mosi = <&msm_gpio 85 0>;
@@ -1694,6 +1701,7 @@
 			qcom,cdc-dmic-sample-rate = <4800000>;
 			qcom,cdc-mad-dmic-rate = <600000>;
 			qcom,cdc-variant = "WCD9330";
+			qcom,cdc-spkdrv-ocp-curr-limit-mA = <2625>;
 		};
 	};
 
@@ -2009,7 +2017,7 @@
 				<63 512 0 0>,
 				<63 512 0 304000>;
 		qcom,pas-id = <9>;
-		qcom,proxy-timeout-ms = <50>;
+		qcom,proxy-timeout-ms = <100>;
 		qcom,firmware-name = "venus";
 		linux,contiguous-region = <&peripheral_mem>;
 	};

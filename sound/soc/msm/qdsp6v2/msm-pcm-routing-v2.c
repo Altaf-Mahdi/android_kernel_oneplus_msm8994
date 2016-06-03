@@ -36,7 +36,7 @@
 #include <sound/msm-dts-eagle.h>
 #include <sound/audio_effects.h>
 #include <sound/hwdep.h>
-
+#include <sound/sounddebug.h>
 #include "msm-pcm-routing-v2.h"
 #include "msm-pcm-routing-devdep.h"
 #include "msm-qti-pp-config.h"
@@ -104,6 +104,12 @@ static const DECLARE_TLV_DB_LINEAR(afe_mi2s_vol_gain, 0,
  /* add end by zhiguang.su@MultiMedia.AudioDrv on 2015-03-11,add for quat i2s */
 #endif
 
+#ifdef VENDOR_EDIT
+//#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
+ static int  dirac_port_id = -1;
+ static int  dirac_copp_id = -1;
+#endif/*VENDOR_EDIT*/	
+
 struct msm_pcm_route_bdai_pp_params {
 	u16 port_id; /* AFE port ID */
 	unsigned long pp_params_config;
@@ -158,6 +164,14 @@ static void msm_pcm_routing_cfg_pp(int port_id, int copp_idx, int topology,
 		pr_debug("%s: DTS_EAGLE_COPP_TOPOLOGY_ID\n", __func__);
 		msm_dts_eagle_init_post(port_id, copp_idx);
 		break;
+#ifdef VENDOR_EDIT
+//#lifei@OnePlus.MultiMediaService, 2016/01/11 add set/get dsp interface
+    case ADM_CMD_COPP_OPEN_TOPOLOGY_ID_DIRAC:
+        pr_debug("%s: ADM_CMD_COPP_OPEN_TOPOLOGY_ID_DIRAC\n", __func__);
+        dirac_port_id = port_id;
+        dirac_copp_id = copp_idx;
+        break;
+#endif/*VENDOR_EDIT*/
 	default:
 		/* custom topology specific feature param handlers */
 		break;
@@ -776,6 +790,7 @@ int msm_pcm_routing_reg_phy_stream(int fedai_id, int perf_mode,
 	struct route_payload payload;
 	u32 channels, sample_rate;
 	uint16_t bits_per_sample = 16;
+    pr_debug("%s\n", __func__);
 
 	if (fedai_id > MSM_FRONTEND_DAI_MM_MAX_ID) {
 		/* bad ID assigned in machine driver */
@@ -4094,6 +4109,100 @@ static const struct snd_kcontrol_new use_ds1_or_ds2_controls[] = {
 	msm_routing_put_use_ds1_or_ds2_control),
 };
 
+#ifdef VENDOR_EDIT
+//#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
+static int msm_routing_get_dirac_enable_param_control(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol) {
+	/* not used */
+	return 0;
+}
+
+#define AUDIO_DIRAC_MODULEID  0x00012D00
+#define DIRAC_PARAM_HD_ENABLE  0x00012D03
+#define DIRAC_PARAM_HEADSET  0x00012D04
+
+static int msm_routing_put_dirac_enable_param_control(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+	int ret = 0;
+	int enable = ucontrol->value.integer.value[0];
+	pr_debug("%s: enable = %d , dirac_port_id = %d, dirac_copp_id = %d\n", __func__,enable,dirac_port_id,dirac_copp_id);
+	if ((enable < 0) || (enable > 1)) {
+		pr_err(" %s Invalid arguments", __func__);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	mutex_lock(&routing_lock);
+    if(dirac_port_id == -1){
+       dirac_port_id = SLIMBUS_0_RX;
+    }
+	if(dirac_copp_id == -1){
+       dirac_copp_id = 0;
+    }
+	ret = adm_set_dirac_enable_params(dirac_port_id, AUDIO_DIRAC_MODULEID,
+                dirac_copp_id,
+				DIRAC_PARAM_HD_ENABLE,
+				enable);
+	mutex_unlock(&routing_lock);
+
+	if (ret != 0) {
+		pr_err("%s: set parameters failed\n", __func__);
+		return -EINVAL;
+	}
+
+done:
+	return ret;
+}
+
+static int msm_routing_get_dirac_headset_param_control(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol) {
+	/* not used */
+	return 0;
+}
+
+static int msm_routing_put_dirac_headset_param_control(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+	int ret = 0;
+	int Selectenable = ucontrol->value.integer.value[0];
+	pr_debug("%s: Selectenable = %d , dirac_port_id = %d, dirac_copp_id = %d\n", __func__,Selectenable,dirac_port_id,dirac_copp_id);
+	if ((Selectenable < 0) || (Selectenable > 5)) {
+		pr_err(" %s Invalid arguments", __func__);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	mutex_lock(&routing_lock);
+	if(dirac_port_id == -1){
+       dirac_port_id = SLIMBUS_0_RX;
+    }
+	if(dirac_copp_id == -1){
+       dirac_copp_id = 0;
+    }
+	ret = adm_set_dirac_enable_params(dirac_port_id, AUDIO_DIRAC_MODULEID,
+                dirac_copp_id,
+				DIRAC_PARAM_HEADSET,
+				Selectenable);
+	mutex_unlock(&routing_lock);
+	if (ret != 0) {
+		pr_err("%s: set parameters failed\n", __func__);
+		return -EINVAL;
+	}
+
+done:
+	return ret;
+}
+
+
+static const struct snd_kcontrol_new set_dirac_enable_param_to_set_controls[] = {
+    SOC_SINGLE_EXT("SetDirac Enable", SND_SOC_NOPM ,
+	               0, 1, 0, msm_routing_get_dirac_enable_param_control,
+	               msm_routing_put_dirac_enable_param_control),
+	SOC_SINGLE_EXT("Select Dirac Headset", SND_SOC_NOPM ,
+	               0, 4, 0, msm_routing_get_dirac_headset_param_control,
+	               msm_routing_put_dirac_headset_param_control),	
+};
+#endif/*VENDOR_EDIT*/
+
 int msm_routing_get_rms_value_control(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol) {
 	int rc = 0;
@@ -5717,6 +5826,7 @@ static int msm_pcm_routing_close(struct snd_pcm_substream *substream)
 	int i, session_type, path_type, topology;
 	struct msm_pcm_routing_bdai_data *bedai;
 	struct msm_pcm_routing_fdai_data *fdai;
+    pr_debug("%s\n", __func__);
 
 	if (be_id >= MSM_BACKEND_DAI_MAX) {
 		pr_err("%s: unexpected be_id %d\n", __func__, be_id);
@@ -5778,6 +5888,7 @@ static int msm_pcm_routing_prepare(struct snd_pcm_substream *substream)
 	bool playback, capture;
 	uint16_t bits_per_sample = 16;
 	struct msm_pcm_routing_fdai_data *fdai;
+    pr_debug("%s\n", __func__);
 
 	if (be_id >= MSM_BACKEND_DAI_MAX) {
 		pr_err("%s: unexpected be_id %d\n", __func__, be_id);
@@ -6118,13 +6229,13 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
  /* add end by zhiguang.su@MultiMedia.AudioDrv on 2015-03-11,add for enable i2s */
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(msm_snd_controls); i++) {
-		kctl = snd_ctl_new1(&msm_snd_controls[i], &channel_mux);
-		if (kctl == NULL)
-			return -ENOMEM;
-		snd_ctl_add(platform->card->snd_card, kctl);
-	}
+#ifdef VENDOR_EDIT
+//#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
+    snd_soc_add_platform_controls(platform,
+				set_dirac_enable_param_to_set_controls,
+			ARRAY_SIZE(set_dirac_enable_param_to_set_controls));
 
+#endif/*VENDOR_EDIT*/
 
 	for (i = 0; i < ARRAY_SIZE(msm_snd_controls); i++) {
 		kctl = snd_ctl_new1(&msm_snd_controls[i], &channel_mux);

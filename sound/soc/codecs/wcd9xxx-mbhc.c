@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <sound/sounddebug.h>
 #include "wcd9320.h"
 #include "wcd9306.h"
 #include "wcd9xxx-mbhc.h"
@@ -52,10 +53,8 @@
 
 #define NUM_DCE_PLUG_DETECT 3
 #define NUM_DCE_PLUG_INS_DETECT 5
-
 #define NUM_ATTEMPTS_INSERT_DETECT 25
 #define NUM_ATTEMPTS_TO_REPORT 5
-#define NUM_TO_REPORT_INVALID 10
 
 #define FAKE_INS_LOW 10
 #define FAKE_INS_HIGH 80
@@ -108,7 +107,12 @@
  * Invalid voltage range for the detection
  * of plug type with current source
  */
+#ifndef VENDOR_EDIT
+//zhiguang.su@MultiMedia.AudioDrv, for LaKaLa detect,2016-1-5
 #define WCD9XXX_CS_MEAS_INVALD_RANGE_LOW_MV 160
+#else
+#define WCD9XXX_CS_MEAS_INVALD_RANGE_LOW_MV 210
+#endif
 #define WCD9XXX_CS_MEAS_INVALD_RANGE_HIGH_MV 265
 
 /*
@@ -145,7 +149,6 @@
 #define WCD9XXX_V_CS_NO_MIC 5
 #endif
 #define WCD9XXX_MB_MEAS_DELTA_MAX_MV 80
-
 #define WCD9XXX_CS_MEAS_DELTA_MAX_MV 12
 
 #define WCD9XXX_ZDET_ZONE_1 80000
@@ -1947,12 +1950,19 @@ wcd9xxx_codec_cs_get_plug_type(struct wcd9xxx_mbhc *mbhc, bool highhph)
 			wcd9xxx_turn_onoff_current_source(mbhc,
 							  &mbhc->mbhc_bias_regs,
 							  false, false);
-
+#ifdef VENDOR_EDIT
+/*zhiguang.su@MultiMedia.AudioDrv, 2016-01-19, let the voltage go stable,to fix some pay tools can not recognized as headset*/
+msleep(1);
+#endif
 		rt[i].dce = __wcd9xxx_codec_sta_dce(mbhc, 1, !highhph, true);
 		if (rt[i].mic_bias)
 			wcd9xxx_turn_onoff_current_source(mbhc,
 							  &mbhc->mbhc_bias_regs,
 							  true, false);
+#ifdef VENDOR_EDIT
+/*zhiguang.su@MultiMedia.AudioDrv, 2016-01-19, let the voltage go stable,to fix some pay tools can not recognized as headset*/
+msleep(1);
+#endif
 		if (rt[i].swap_gnd)
 			wcd9xxx_codec_hphr_gnd_switch(codec, false);
 	}
@@ -2025,6 +2035,10 @@ wcd9xxx_codec_get_plug_type(struct wcd9xxx_mbhc *mbhc, bool highhph)
 			wcd9xxx_codec_hphr_gnd_switch(codec, true);
 		if (rt[i].vddio)
 			wcd9xxx_onoff_vddio_switch(mbhc, true);
+#ifdef VENDOR_EDIT
+/*zhiguang.su@MultiMedia.AudioDrv, 2016-01-19, let the voltage go stable,to fix some pay tools can not recognized as headset*/
+msleep(1);
+#endif
 		/*
 		 * Pull down micbias to detect headset with mic which has
 		 * threshold and to have more consistent voltage measurements.
@@ -2034,9 +2048,17 @@ wcd9xxx_codec_get_plug_type(struct wcd9xxx_mbhc *mbhc, bool highhph)
 		 */
 		(void) wcd9xxx_pull_down_micbias(mbhc,
 					    WCD9XXX_MICBIAS_PULLDOWN_SETTLE_US);
+#ifdef VENDOR_EDIT
+/*zhiguang.su@MultiMedia.AudioDrv, 2016-01-19, let the voltage go stable,to fix some pay tools can not recognized as headset*/
+msleep(1);
+#endif
 		rt[i].dce = __wcd9xxx_codec_sta_dce(mbhc, 1, true, true);
 		if (rt[i].vddio)
 			wcd9xxx_onoff_vddio_switch(mbhc, false);
+#ifdef VENDOR_EDIT
+/*zhiguang.su@MultiMedia.AudioDrv, 2016-01-19, let the voltage go stable,to fix some pay tools can not recognized as headset*/
+msleep(1);
+#endif
 		if (rt[i].swap_gnd)
 			wcd9xxx_codec_hphr_gnd_switch(codec, false);
 	}
@@ -2846,6 +2868,7 @@ static void wcd9xxx_hs_insert_irq_extn(struct wcd9xxx_mbhc *mbhc,
 static irqreturn_t wcd9xxx_hs_remove_irq(int irq, void *data)
 {
 	struct wcd9xxx_mbhc *mbhc = data;
+
 	pr_debug("%s: enter, removal interrupt\n", __func__);
 	WCD9XXX_BCL_LOCK(mbhc->resmgr);
 	/*
@@ -3172,7 +3195,7 @@ static void wcd9xxx_correct_swch_plug(struct work_struct *work)
 	struct snd_soc_codec *codec;
 	enum wcd9xxx_mbhc_plug_type plug_type = PLUG_TYPE_INVALID;
 	unsigned long timeout;
-	int retry = 0, pt_gnd_mic_swap_cnt = 0, invalid_cnt = 0;
+	int retry = 0, pt_gnd_mic_swap_cnt = 0;
 	int highhph_cnt = 0;
 	bool correction = false;
 	bool current_source_enable;
@@ -3248,8 +3271,7 @@ static void wcd9xxx_correct_swch_plug(struct work_struct *work)
 					0;
 		highhph = wcd9xxx_mbhc_enable_mb_decision(highhph_cnt);
 		if (plug_type == PLUG_TYPE_INVALID) {
-		    invalid_cnt++;
-			pr_debug("Invalid plug in attempt # %d count %d\n", retry,invalid_cnt);
+			pr_debug("Invalid plug in attempt # %d\n", retry);
 			if (!mbhc->mbhc_cfg->detect_extn_cable &&
 			    retry == NUM_ATTEMPTS_TO_REPORT &&
 			    mbhc->current_plug == PLUG_TYPE_NONE) {
@@ -3257,12 +3279,6 @@ static void wcd9xxx_correct_swch_plug(struct work_struct *work)
 				wcd9xxx_report_plug(mbhc, 1,
 						    SND_JACK_HEADPHONE);
 				WCD9XXX_BCL_UNLOCK(mbhc->resmgr);
-			} else if (invalid_cnt == NUM_TO_REPORT_INVALID) {
-			    pr_debug("invalit_cnt = 10 report unsupported\n");
-			    WCD9XXX_BCL_LOCK(mbhc->resmgr);
-					wcd9xxx_report_plug(mbhc, 1,
-							SND_JACK_UNSUPPORTED);
-					WCD9XXX_BCL_UNLOCK(mbhc->resmgr);
 			}
 		} else if (plug_type == PLUG_TYPE_HEADPHONE) {
 			pr_debug("Good headphone detected, continue polling\n");

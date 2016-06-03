@@ -53,8 +53,6 @@
 static int mdss_mdp_overlay_free_fb_pipe(struct msm_fb_data_type *mfd);
 static int mdss_mdp_overlay_fb_parse_dt(struct msm_fb_data_type *mfd);
 static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd);
-static void __overlay_pipe_cleanup(struct msm_fb_data_type *mfd,
-		struct mdss_mdp_pipe *pipe);
 static void __overlay_kickoff_requeue(struct msm_fb_data_type *mfd);
 static void __vsync_retire_signal(struct msm_fb_data_type *mfd, int val);
 static int __vsync_set_vsync_handler(struct msm_fb_data_type *mfd);
@@ -1069,7 +1067,7 @@ exit_fail:
 		pr_debug("failed for pipe %d\n", pipe->num);
 		if (!list_empty(&pipe->list))
 			list_del_init(&pipe->list);
-		__overlay_pipe_cleanup(mfd, pipe);
+		mdss_mdp_pipe_destroy(pipe);
 	}
 
 	/* invalidate any overlays in this framebuffer after failure */
@@ -3710,13 +3708,26 @@ static int mdss_mdp_pp_ioctl(struct msm_fb_data_type *mfd,
 {
 	int ret;
 	struct msmfb_mdp_pp mdp_pp;
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	u32 copyback = 0;
 	u32 copy_from_kernel = 0;
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
 
+	if (!mdata)
+		return -EPERM;
+
 	ret = copy_from_user(&mdp_pp, argp, sizeof(mdp_pp));
 	if (ret)
 		return ret;
+
+	/* Support only PP init cfg op if partial update is enabled for allowing
+	 * overriding of partial update
+	*/
+	if (mdata->pp_enable == MDP_PP_DISABLE &&
+				mdp_pp.op != mdp_op_pp_init_cfg) {
+		pr_err("Partial update feature is enabled\n");
+		return -EPERM;
+	}
 
 	if (mfd->panel_info->partial_update_enabled && mdp5_data->dyn_pu_state
 			&& !mdss_mdp_pp_is_disable_op(&mdp_pp)) {
@@ -3812,6 +3823,10 @@ static int mdss_mdp_pp_ioctl(struct msm_fb_data_type *mfd,
 	case mdp_op_calib_dcm_state:
 		ret = mdss_fb_dcm(mfd, mdp_pp.data.calib_dcm.dcm_state);
 		break;
+	case mdp_op_pp_init_cfg:
+		ret = mdss_mdp_pp_override_pu(
+				mdp_pp.data.init_data.init_request);
+		break;
 	default:
 		pr_err("Unsupported request to MDP_PP IOCTL. %d = op\n",
 								mdp_pp.op);
@@ -3836,6 +3851,11 @@ static int mdss_mdp_histo_ioctl(struct msm_fb_data_type *mfd, u32 cmd,
 
 	if (!mdata)
 		return -EPERM;
+
+	if (mdata->pp_enable == MDP_PP_DISABLE) {
+		pr_err("Partial update feature is enabled\n");
+		return -EPERM;
+	}
 
 	if (mfd->panel_info->partial_update_enabled && mdp5_data->dyn_pu_state
 			&& (cmd != MSMFB_HISTOGRAM_STOP)) {
@@ -5141,6 +5161,11 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 	mfd->wait_for_kickoff = true;
 	if (is_panel_split(mfd) && mdp5_data->mdata->has_pingpong_split)
 		mfd->split_mode = MDP_PINGPONG_SPLIT;
+
+	if (mfd->panel_info->partial_update_enabled)
+		mdp5_data->mdata->pp_enable = MDP_PP_DISABLE;
+	else
+		mdp5_data->mdata->pp_enable = MDP_PP_ENABLE;
 
 	rc = mdss_mdp_overlay_fb_parse_dt(mfd);
 	if (rc)

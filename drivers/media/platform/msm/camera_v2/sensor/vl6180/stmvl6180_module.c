@@ -76,7 +76,7 @@ struct mutex	  vl6180_mutex;
 int8_t offset_calib=0;
 int16_t xtalk_calib=0;
 #endif
-#ifdef MULTI_READ	
+#ifdef MULTI_READ
 static uint32_t get_unsigned_int_from_buffer(uint8_t *pdata, int8_t count);
 static uint16_t get_unsigned_short_from_buffer(uint8_t *pdata, int8_t count);
 static int stmvl6180_ps_read_result(struct i2c_client *client);
@@ -100,7 +100,7 @@ static void stmvl6180_read_calibration_file(void)
 #if 1
 	uint32 offset = 0;
 	uint32 cross_talk = 0;
-	
+
 	if(get_param_camera_laser_sensor_offset(&offset) < 0){
 		pr_err("%s:%d get_param_camera_laser_sensor_offset failed\n", __func__, __LINE__);
 		return;
@@ -113,7 +113,7 @@ static void stmvl6180_read_calibration_file(void)
 	if(offset >= 128)
 		offset_calib = offset - 256;
 	else
-		offset_calib = offset;		
+		offset_calib = offset;
 
 	xtalk_calib = cross_talk;
 
@@ -121,8 +121,8 @@ static void stmvl6180_read_calibration_file(void)
 	VL6180x_SetUserOffsetCalibration(vl6180x_dev, offset_calib);
 
 	CDBG("%s:%d xtalk_calib as %d\n", __func__, __LINE__, xtalk_calib);
-	VL6180x_SetUserXTalkCompensationRate(vl6180x_dev, xtalk_calib);	
-	
+	VL6180x_SetUserXTalkCompensationRate(vl6180x_dev, xtalk_calib);
+
 #else
 
 	struct file *f;
@@ -132,9 +132,9 @@ static void stmvl6180_read_calibration_file(void)
 #ifdef CALIBRATION_FILE
 	int8_t offset_calib_t=0;
 	int16_t xtalk_calib_t=0;
-#endif	
+#endif
 
-	f = filp_open("/persist/camera/LaserFocusOffset.txt", O_RDONLY, 0);	
+	f = filp_open("/persist/camera/LaserFocusOffset.txt", O_RDONLY, 0);
 	if (f!= NULL && !IS_ERR(f) && f->f_dentry!=NULL)
 	{
 		fs = get_fs();
@@ -154,8 +154,8 @@ static void stmvl6180_read_calibration_file(void)
 			else
 				break;
 		}
-		CDBG("is_sign:%d, offset_calib:%d\n", is_sign, offset_calib_t);	
-		
+		CDBG("is_sign:%d, offset_calib:%d\n", is_sign, offset_calib_t);
+
 		if (is_sign)
 			offset_calib_t = -offset_calib_t;
 		offset_calib = offset_calib_t;
@@ -185,7 +185,7 @@ static void stmvl6180_read_calibration_file(void)
 				is_sign=1;
 			else if (buf[i]>='0' && buf[i]<='9')
 				xtalk_calib_t = xtalk_calib_t*10 + (buf[i]-'0');
-			else 
+			else
 				break;
 		}
 		if (is_sign==1)
@@ -199,7 +199,7 @@ static void stmvl6180_read_calibration_file(void)
 		pr_err("no xtalk calibration file exist!\n");
 
 	return;
-#endif	
+#endif
 }
 static void stmvl6180_write_offset_calibration_file(void)
 {
@@ -209,7 +209,7 @@ static void stmvl6180_write_offset_calibration_file(void)
 		pr_err("%s:%d wrong offset value\n", __func__, __LINE__);
 		return;
 	}
-//offset_calib is int8_t type, but the data is saved as unsigned int, so need to convert			
+//offset_calib is int8_t type, but the data is saved as unsigned int, so need to convert
 	if(offset_calib < 0)
 		offset = (uint)(256+offset_calib);
 	else
@@ -256,7 +256,7 @@ static void stmvl6180_write_xtalk_calibration_file(void)
 		cross_talk = (uint)(xtalk_calib);
 	if(set_param_camera_laser_sensor_cross_talk(&cross_talk) < 0)
 		pr_err("%s:%d set_param_camera_laser_sensor_cross_talk failed\n", __func__, __LINE__);
-	
+
 	return;
 #else
 
@@ -285,7 +285,7 @@ static void stmvl6180_write_xtalk_calibration_file(void)
 }
 
 #endif
-#ifdef MULTI_READ	
+#ifdef MULTI_READ
 static uint32_t get_unsigned_int_from_buffer(uint8_t *pdata, int8_t count)
 {
 	uint32_t value=0;
@@ -311,26 +311,26 @@ static int stmvl6180_ps_read_result(struct i2c_client *client)
 
 	status = VL6180x_RdBuffer(vl6180x_dev, RESULT_RANGE_STATUS , vl6180_data->ResultBuffer,RESULT_REG_COUNT);
         if (status) {
-            VL6180x_ErrLog("RESULT_RANGE_STATUS rd fail status is:%d\n",status);
+            pr_err("RESULT_RANGE_STATUS rd fail status is:%d\n",status);
             return status;
-        }	
+        }
 	status = VL6180x_RdByte(vl6180x_dev, SYSRANGE_PART_TO_PART_RANGE_OFFSET, &(vl6180_data->rangeData.m_rangeOffset));
         if (status) {
-            VL6180x_ErrLog("SYSRANGE_PART_TO_PART_RANGE_OFFSET rd failstatus is:%d\n",status);
+            pr_err("SYSRANGE_PART_TO_PART_RANGE_OFFSET rd failstatus is:%d\n",status);
             return status;
         }
         status = VL6180x_RdWord(vl6180x_dev, SYSRANGE_CROSSTALK_COMPENSATION_RATE, &(vl6180_data->rangeData.m_crossTalk));
         if (status) {
-            VL6180x_ErrLog("SYSRANGE_CROSSTALK_COMPENSATION_RATE rd failstatus is:%d\n",status);
+            pr_err("SYSRANGE_CROSSTALK_COMPENSATION_RATE rd failstatus is:%d\n",status);
 	   return status;
         }
-	
+
 	return status;
 }
 static void stmvl6180_ps_parse_result(struct i2c_client *client)
 {
 	struct stmvl6180_data *vl6180_data = vl6180_data_g;
-	
+
 	//RESULT_RANGE_STATUS:0x004D
 	vl6180_data->rangeResult.Result_range_status = vl6180_data->ResultBuffer[0];
 	//RESULT_INTERRUPT_STATUS:0x004F
@@ -357,20 +357,20 @@ static void stmvl6180_ps_parse_result(struct i2c_client *client)
 	vl6180_data->rangeResult.Result_range_reference_conv_time = get_unsigned_int_from_buffer(vl6180_data->ResultBuffer+(0x80-0x4d),4);
 
 
-//	data->rangeData.m_refRate = data->rangeResult.Result_range_reference_rate;		
-//	data->rangeData.m_refRate = data->rangeResult.Result_range_reference_rate;		
+//	data->rangeData.m_refRate = data->rangeResult.Result_range_reference_rate;
+//	data->rangeData.m_refRate = data->rangeResult.Result_range_reference_rate;
 	vl6180_data->rangeData.m_rtnSignalCount = vl6180_data->rangeResult.Result_range_return_signal_count;
 	vl6180_data->rangeData.m_refSignalCount = 	vl6180_data->rangeResult.Result_range_reference_signal_count;
 	vl6180_data->rangeData.m_rtnAmbientCount = vl6180_data->rangeResult.Result_range_return_amb_count;
-	vl6180_data->rangeData.m_refAmbientCount = vl6180_data->rangeResult.Result_range_reference_amb_count;	
+	vl6180_data->rangeData.m_refAmbientCount = vl6180_data->rangeResult.Result_range_reference_amb_count;
 	vl6180_data->rangeData.m_rawRange_mm = vl6180_data->rangeResult.Result_range_raw;
 
 	if(vl6180_data->rangeResult.Result_range_return_conv_time < vl6180_data->rangeResult.Result_range_reference_conv_time)
 		vl6180_data->rangeData.m_convTime = 	vl6180_data->rangeResult.Result_range_reference_conv_time;
 	else
-		vl6180_data->rangeData.m_convTime = 	vl6180_data->rangeResult.Result_range_return_conv_time;		
-	
-	return;	
+		vl6180_data->rangeData.m_convTime = 	vl6180_data->rangeResult.Result_range_return_conv_time;
+
+	return;
 }
 #endif
 static void stmvl6180_ps_read_measurement(struct i2c_client *client)
@@ -383,36 +383,51 @@ static void stmvl6180_ps_read_measurement(struct i2c_client *client)
 #else
 	VL6180x_RangeGetMeasurement(vl6180x_dev, &(vl6180_data->rangeData));
 #endif
-	do_gettimeofday(&tv);	
+	do_gettimeofday(&tv);
 
-	vl6180_data->ps_data = vl6180_data->rangeData.range_mm;		
-		
+	vl6180_data->ps_data = vl6180_data->rangeData.range_mm;
+
 	input_report_abs(vl6180_data->input_dev_ps, ABS_DISTANCE, (int)(vl6180_data->ps_data+5)/10); //range in cm
 //	input_report_abs(data->input_dev_ps, ABS_HAT0X, data->rangeData.rtnConvTime/1000000); //tv_sec
 //	input_report_abs(data->input_dev_ps, ABS_HAT0Y, data->rangeData.rtnConvTime); //tv_usec
 	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT0X,tv.tv_sec);
 	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT0Y,tv.tv_usec);
 	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT1X,vl6180_data->rangeData.range_mm);
-	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT1Y,vl6180_data->rangeData.errorStatus);
+/*
+  *vl6180_data->ResultBuffer[0]&0x01 == 0x01 means device ready, so send the errorStatus read from laser,
+  *otherwise send 0x01 error code which means the data read from laser is invalide, and the AF algorithm
+  *will ignore the laser data.
+*/
+	if((vl6180_data->ResultBuffer[0]&0x01) == 0x01){
 #ifdef VL6180x_HAVE_RATE_DATA
-	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT2X,vl6180_data->rangeData.signalRate_mcps);
-	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT2Y,vl6180_data->rangeData.rtnAmbRate);
-	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT3X,vl6180_data->rangeData.rtnConvTime);
+		input_report_abs(vl6180_data->input_dev_ps, ABS_HAT2X,vl6180_data->rangeData.signalRate_mcps);
+		input_report_abs(vl6180_data->input_dev_ps, ABS_HAT2Y,vl6180_data->rangeData.rtnAmbRate);
+		input_report_abs(vl6180_data->input_dev_ps, ABS_HAT3X,vl6180_data->rangeData.rtnConvTime);
 #endif
+	}else{
+		CDBG("%s:%d vl6180_data->ResultBuffer[0] %d, will set signalRate_mcps and rtnAmbRate to 0\n", __func__, __LINE__, vl6180_data->ResultBuffer[0]);
+#ifdef VL6180x_HAVE_RATE_DATA
+		input_report_abs(vl6180_data->input_dev_ps, ABS_HAT2X,0);
+		input_report_abs(vl6180_data->input_dev_ps, ABS_HAT2Y,0);
+		input_report_abs(vl6180_data->input_dev_ps, ABS_HAT3X,vl6180_data->rangeData.rtnConvTime);
+#endif
+	}
+	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT1Y,vl6180_data->rangeData.errorStatus);
+
 #if  VL6180x_HAVE_DMAX_RANGING
 	input_report_abs(vl6180_data->input_dev_ps, ABS_HAT3Y,vl6180_data->rangeData.DMax);
 #endif
-	
+
 	input_sync(vl6180_data->input_dev_ps);
 	if (vl6180_data->enableDebug)
-		CDBG("range:%d, signalrate_mcps:%d, error:0x%x,rtnsgnrate:%u, rtnambrate:%u,rtnconvtime:%u\n", 
+		CDBG("range:%d, signalrate_mcps:%d, error:0x%x,rtnsgnrate:%u, rtnambrate:%u,rtnconvtime:%u\n",
 			vl6180_data->rangeData.range_mm,
 			vl6180_data->rangeData.signalRate_mcps,
 			vl6180_data->rangeData.errorStatus,
 			vl6180_data->rangeData.rtnRate,
 			vl6180_data->rangeData.rtnAmbRate,
 			vl6180_data->rangeData.rtnConvTime);
-	
+
 }
 /* interrupt work handler */
 static void stmvl6180_work_handler(struct work_struct *work)
@@ -430,20 +445,24 @@ static void stmvl6180_work_handler(struct work_struct *work)
 //likelong added
 	if( !vl6180_data->enable_ps_sensor){
 		mutex_unlock(&vl6180_data->work_mutex);
+		pr_err("vl6180_data->enable_ps_sensor %d\n", vl6180_data->enable_ps_sensor);
 		return;
 	}
-	
+
 #ifdef MULTI_READ
 	ret = stmvl6180_ps_read_result(client);
-	if (ret == 0 && ((vl6180_data->ResultBuffer[0]&0x01) == 0x01)){
+	if (ret == 0){
 		if( vl6180_data->enable_ps_sensor){
 			stmvl6180_ps_parse_result(client);
+			CDBG("stmvl6180_ps_read_measurement\n");
 			stmvl6180_ps_read_measurement(client);
 			if (vl6180_data->ps_is_singleshot)
 				to_startPS = 1;
-		}
-	}
-#else	
+		}else
+			pr_err("enable_ps_sensor is %d\n", vl6180_data->enable_ps_sensor);
+	}else
+		pr_err("%s:%d ret %d\n", __func__, __LINE__, ret);
+#else
 	VL6180x_RangeGetInterruptStatus(vl6180x_dev, &gpio_status);
 	VL6180x_RdByte(vl6180x_dev, RESULT_RANGE_STATUS, &range_status);
 	VL6180x_RdByte(vl6180x_dev, SYSRANGE_START, &range_start);
@@ -451,19 +470,21 @@ static void stmvl6180_work_handler(struct work_struct *work)
 	//if (gpio_status == RES_INT_STAT_GPIO_NEW_SAMPLE_READY)
 	if (((range_status&0x01)==0x01) && (range_start== 0x00)){
 		if( vl6180_data->enable_ps_sensor){
-			CDBG("stmvl6180_ps_read_measurement");
+			CDBG("stmvl6180_ps_read_measurement\n");
 			stmvl6180_ps_read_measurement(client);
 			if (vl6180_data->ps_is_singleshot)
 				to_startPS = 1;
-		}
+		}else
+			pr_err("enable_ps_sensor is %d\n", vl6180_data->enable_ps_sensor);
 		VL6180x_RangeClearInterrupt(vl6180x_dev);
 
-	}
+	}else
+		pr_err("range_status %d, range_start %d\n", range_status, range_start);
 #endif
 	if (to_startPS){
 		VL6180x_RangeSetSystemMode(vl6180x_dev, MODE_START_STOP | MODE_SINGLESHOT);
 	}
-	
+	CDBG("schedule_delayed_work\n");
 	schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies((vl6180_data->delay_ms)));	// restart timer
 
    	mutex_unlock(&vl6180_data->work_mutex);
@@ -478,6 +499,7 @@ static irqreturn_t stmvl6180_interrupt_handler(int vec, void *info)
 
 	if (vl6180_data->irq == vec){
 		CDBG("==>interrupt_handler\n");
+		CDBG("schedule_delayed_work\n");
 		schedule_delayed_work(&vl6180_data->dwork, 0);
 	}
 	return IRQ_HANDLED;
@@ -491,7 +513,7 @@ static ssize_t stmvl6180_show_enable_ps_sensor(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct stmvl6180_data *vl6180_data = vl6180_data_g;
-	
+
 	return sprintf(buf, "%d\n", vl6180_data->enable_ps_sensor);
 }
 
@@ -502,7 +524,7 @@ static ssize_t stmvl6180_store_enable_ps_sensor(struct device *dev,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
  	unsigned long flags;
 	int rc = 0;
-	
+
 	CDBG("enable %ld\n", val);
 	if ((val != 0) && (val != 1)) {
 		pr_err("%s:%d store unvalid value=%ld\n", __func__, __LINE__, val);
@@ -512,12 +534,21 @@ static ssize_t stmvl6180_store_enable_ps_sensor(struct device *dev,
 
 	if(val == 1){
 		//turn on p sensor
-		if (vl6180_data->enable_ps_sensor==0) {	
+		if (vl6180_data->enable_ps_sensor==0) {
 			stmvl6180_set_enable(client,0); /* Power Off */
 			rc = stmvl6180_power_enable(vl6180_data, 1);
 			if(rc){
+				stmvl6180_power_enable(vl6180_data, 0);
 				mutex_unlock(&vl6180_data->work_mutex);
-				pr_err("%s:%d failed rc %d\n", __func__, __LINE__, rc);
+				pr_err("%s:%d stmvl6180 power up failed rc %d\n", __func__, __LINE__, rc);
+				return rc;
+			}
+
+			rc = stmvl6180_init_client(vl6180_data);
+			if(rc){
+				stmvl6180_power_enable(vl6180_data, 0);
+				mutex_unlock(&vl6180_data->work_mutex);
+				pr_err("%s:%d stmvl6180 init failed rc %d\n", __func__, __LINE__, rc);
 				return rc;
 			}
 //			mutex_lock(&vl6180_data->work_mutex);
@@ -538,23 +569,25 @@ static ssize_t stmvl6180_store_enable_ps_sensor(struct device *dev,
 			vl6180_data->enable_ps_sensor= 1;
 
 			/* we need this polling timer routine for house keeping*/
-			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 			/*
 			 * If work is already scheduled then subsequent schedules will not
 			 * change the scheduled time that's why we have to cancel it first.
 			 */
+			CDBG("cancel_delayed_work\n");
 			cancel_delayed_work(&vl6180_data->dwork);
-			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));	
-			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));	
-			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);	
+			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));
+			CDBG("schedule_delayed_work\n");
+			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));
+			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
 
-			stmvl6180_set_enable(client, 1); /* Power On */	 
+			stmvl6180_set_enable(client, 1); /* Power On */
 //		 	mutex_unlock(&vl6180_data->work_mutex);
 		}
-	} 
+	}
 	else {
 		if (vl6180_data->enable_ps_sensor==1) { //#tt999
-		//turn off p sensor 
+		//turn off p sensor
 //	 	mutex_lock(&vl6180_data->work_mutex);
 		vl6180_data->enable_ps_sensor = 0;
 		if (vl6180_data->ps_is_singleshot == 0)
@@ -563,20 +596,21 @@ static ssize_t stmvl6180_store_enable_ps_sensor(struct device *dev,
 
 		stmvl6180_set_enable(client, 0);
 
-		spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+		spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 		/*
 		 * If work is already scheduled then subsequent schedules will not
 		 * change the scheduled time that's why we have to cancel it first.
 		 */
+		CDBG("cancel_delayed_work\n");
 		cancel_delayed_work(&vl6180_data->dwork);
-		spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags); 
+		spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
 // 		mutex_unlock(&vl6180_data->work_mutex);
 //		kelong need to check
 		rc = stmvl6180_power_enable(vl6180_data_g, 0);
 		if(rc) {
 			pr_err("failed rc %d\n", rc);
 //			return rc;
-		}		
+		}
 		}
 	}
 	mutex_unlock(&vl6180_data->work_mutex);
@@ -592,7 +626,7 @@ static ssize_t stmvl6180_show_enable_debug(struct device *dev,
 {
 	struct stmvl6180_data *vl6180_data = vl6180_data_g;
 
-	return sprintf(buf, "%d\n", vl6180_data->enableDebug);	
+	return sprintf(buf, "%d\n", vl6180_data->enableDebug);
 }
 
 //for als integration time setup
@@ -619,8 +653,8 @@ static ssize_t stmvl6180_show_set_delay_ms(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct stmvl6180_data *vl6180_data = vl6180_data_g;
-	
-	return sprintf(buf, "%d\n", vl6180_data->delay_ms);	
+
+	return sprintf(buf, "%d\n", vl6180_data->delay_ms);
 }
 
 //for als integration time setup
@@ -647,7 +681,7 @@ static DEVICE_ATTR(set_delay_ms, S_IWUSR | S_IRUGO,
 static struct attribute *stmvl6180_attributes[] = {
 	&dev_attr_enable_ps_sensor.attr,
 	&dev_attr_enable_debug.attr,
-	&dev_attr_set_delay_ms.attr ,	
+	&dev_attr_set_delay_ms.attr ,
 	NULL
 };
 
@@ -658,7 +692,7 @@ static const struct attribute_group stmvl6180_attr_group = {
 /*
  * misc device file operation functions
  */
-static int stmvl6180_ioctl_handler(struct file *file, 
+static int stmvl6180_ioctl_handler(struct file *file,
 				unsigned int cmd, unsigned long arg, void __user *p)
 {
 	int rc=0;
@@ -669,7 +703,7 @@ static int stmvl6180_ioctl_handler(struct file *file,
 	switch (cmd) {
 	case VL6180_IOCTL_INIT:	   /* init.  */
 	{
-		struct stmvl6180_data *vl6180_data = vl6180_data_g;		
+		struct stmvl6180_data *vl6180_data = vl6180_data_g;
 		client = i2c_getclient();
 
 		CDBG("ioclt INIT\n");
@@ -677,8 +711,8 @@ static int stmvl6180_ioctl_handler(struct file *file,
 		if (vl6180_data->enable_ps_sensor==0) {
 			stmvl6180_set_enable(client,0); /* Power Off */
 
-			//re-init		
-			VL6180x_Prepare(vl6180x_dev);			
+			//re-init
+			VL6180x_Prepare(vl6180x_dev);
 			VL6180x_UpscaleSetScaling(vl6180x_dev, 3);
 #if VL6180x_WRAP_AROUND_FILTER_SUPPORT
 			VL6180x_FilterSetState(vl6180x_dev, 1); // turn on wrap around filter
@@ -699,26 +733,28 @@ static int stmvl6180_ioctl_handler(struct file *file,
 			vl6180_data->enable_ps_sensor= 1;
 
 			/* we need this polling timer routine for house keeping*/
-			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 			/*
 			 * If work is already scheduled then subsequent schedules will not
 			 * change the scheduled time that's why we have to cancel it first.
 			 */
+			CDBG("cancel_delayed_work\n");
 
 			cancel_delayed_work(&vl6180_data->dwork);
-			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));	
+			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));
+			CDBG("schedule_delayed_work\n");
 
-			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));	
-			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);	
+			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));
+			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
 
-			stmvl6180_set_enable(client, 1); /* Power On */	 
+			stmvl6180_set_enable(client, 1); /* Power On */
 		}
 
 		return 0;
 	}
 	case VL6180_IOCTL_XTALKCALB: 	/*crosstalk calibration*/
 	{
-		struct stmvl6180_data *vl6180_data = vl6180_data_g;		
+		struct stmvl6180_data *vl6180_data = vl6180_data_g;
 		client = i2c_getclient();
 		CDBG("ioclt VL6180_IOCTL_XTALKCALB\n");
 
@@ -732,7 +768,7 @@ static int stmvl6180_ioctl_handler(struct file *file,
 			VL6180x_FilterSetState(vl6180x_dev, 1); // turn off wrap around filter
 #endif
 			VL6180x_RangeConfigInterrupt(vl6180x_dev, CONFIG_GPIO_INTERRUPT_NEW_SAMPLE_READY);
-			VL6180x_RangeClearInterrupt(vl6180x_dev);			
+			VL6180x_RangeClearInterrupt(vl6180x_dev);
 			VL6180x_WrWord(vl6180x_dev, SYSRANGE_CROSSTALK_COMPENSATION_RATE, 0);
 
 			//start
@@ -741,21 +777,23 @@ static int stmvl6180_ioctl_handler(struct file *file,
 			vl6180_data->enable_ps_sensor= 1;
 
 			/* we need this polling timer routine for house keeping*/
-			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 			/*
 			 * If work is already scheduled then subsequent schedules will not
 			 * change the scheduled time that's why we have to cancel it first.
 			 */
+			CDBG("cancel_delayed_work\n");
 
 			cancel_delayed_work(&vl6180_data->dwork);
-			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));	
+			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));
+			CDBG("schedule_delayed_work\n");
 
-			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));	
-			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);	
-	
-			stmvl6180_set_enable(client, 1); /* Power On */	 
+			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));
+			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
+
+			stmvl6180_set_enable(client, 1); /* Power On */
 		}
-		
+
 		return 0;
 	}
 	case VL6180_IOCTL_SETXTALK:
@@ -777,11 +815,11 @@ static int stmvl6180_ioctl_handler(struct file *file,
 	}
 	case VL6180_IOCTL_OFFCALB: 	/*offset calibration*/
 	{
-		struct stmvl6180_data *vl6180_data = vl6180_data_g;		
+		struct stmvl6180_data *vl6180_data = vl6180_data_g;
 		client = i2c_getclient();
 
 		CDBG("ioclt OFFCALB to enable PS sensor for offset calibration\n");
-			
+
 		//turn on p sensor only if it's not enabled by other client
 		if (vl6180_data->enable_ps_sensor==0) {
 			stmvl6180_set_enable(client,0); /* Power Off */
@@ -802,21 +840,23 @@ static int stmvl6180_ioctl_handler(struct file *file,
 			vl6180_data->enable_ps_sensor= 1;
 
 			/* we need this polling timer routine for house keeping*/
-			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 			/*
 			 * If work is already scheduled then subsequent schedules will not
 			 * change the scheduled time that's why we have to cancel it first.
 			 */
+			CDBG("cancel_delayed_work\n");
 
 			cancel_delayed_work(&vl6180_data->dwork);
-			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));	
+			//schedule_delayed_work(&data->dwork, msecs_to_jiffies(INT_POLLING_DELAY));
+			CDBG("schedule_delayed_work\n");
 
-			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));	
-			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);	
-	
-			stmvl6180_set_enable(client, 1); /* Power On */	 
+			schedule_delayed_work(&vl6180_data->dwork, msecs_to_jiffies(vl6180_data->delay_ms));
+			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
+
+			stmvl6180_set_enable(client, 1); /* Power On */
 		}
-		
+
 		return 0;
 	}
 	case VL6180_IOCTL_SETOFFSET:
@@ -838,13 +878,13 @@ static int stmvl6180_ioctl_handler(struct file *file,
 	}
 	case VL6180_IOCTL_STOP:
 	{
-		struct stmvl6180_data *vl6180_data = vl6180_data_g;		
+		struct stmvl6180_data *vl6180_data = vl6180_data_g;
 		client = i2c_getclient();
 		CDBG("ioclt VL6180_IOCTL_STOP\n");
 
 		//turn off p sensor only if it's enabled by other client
 		if (vl6180_data->enable_ps_sensor==1) {
-			//turn off p sensor 
+			//turn off p sensor
 			vl6180_data->enable_ps_sensor = 0;
 			if (vl6180_data->ps_is_singleshot == 0)
 				VL6180x_RangeSetSystemMode(vl6180x_dev, MODE_START_STOP);
@@ -852,15 +892,15 @@ static int stmvl6180_ioctl_handler(struct file *file,
 
 			stmvl6180_set_enable(client, 0);
 
-			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 			/*
 			* If work is already scheduled then subsequent schedules will not
 			* change the scheduled time that's why we have to cancel it first.
 			*/
-
+			CDBG("cancel_delayed_work\n");
 			cancel_delayed_work(&vl6180_data->dwork);
 
-			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags); 
+			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
 		}
 
 		return 0;
@@ -868,23 +908,23 @@ static int stmvl6180_ioctl_handler(struct file *file,
 	case VL6180_IOCTL_GETDATA:	  /* Get proximity value only */
 	{
 		struct stmvl6180_data *vl6180_data = vl6180_data_g;
-		CDBG("vl6180_getDistance return %ld\n",distance);		
+		CDBG("vl6180_getDistance return %ld\n",distance);
 
 		mutex_lock(&vl6180_data->work_mutex);
 		distance = vl6180_data->rangeData.FilteredData.range_mm;
-		mutex_unlock(&vl6180_data->work_mutex);		
+		mutex_unlock(&vl6180_data->work_mutex);
 		rc = put_user(distance, (unsigned long *)p);
 
 		return rc;
 	}
 	case VL6180_IOCTL_GETDATAS:	 /* Get all range data */
 	{
-		struct stmvl6180_data *vl6180_data = vl6180_data_g;		
-		CDBG("IOCTL_GETDATAS, m_range_mm:%d\n", vl6180_data->rangeData.range_mm);		
+		struct stmvl6180_data *vl6180_data = vl6180_data_g;
+		CDBG("IOCTL_GETDATAS, m_range_mm:%d\n", vl6180_data->rangeData.range_mm);
 
 		mutex_lock(&vl6180_data->work_mutex);
-		rc = copy_to_user((VL6180x_RangeData_t *)p, &(vl6180_data->rangeData), sizeof(VL6180x_RangeData_t)); 
-		mutex_unlock(&vl6180_data->work_mutex);		
+		rc = copy_to_user((VL6180x_RangeData_t *)p, &(vl6180_data->rangeData), sizeof(VL6180x_RangeData_t));
+		mutex_unlock(&vl6180_data->work_mutex);
 		return rc;
 	}
 	default:
@@ -901,7 +941,7 @@ static int stmvl6180_open(struct inode *inode, struct file *file)
 		rc = stmvl6180_power_enable(vl6180_data_g, 1);
 		if(rc){
 			pr_err("%s:%d %d vl6180 power up failed\n", __func__, __LINE__, rc);
-		}	
+		}
 
 		return rc;
 	}else if(vl6180_data_g->enable){
@@ -916,28 +956,29 @@ static int stmvl6180_flush(struct file *file, fl_owner_t id)
 {
  	unsigned long flags;
 	struct i2c_client *client;
-	struct stmvl6180_data *vl6180_data = vl6180_data_g;	
+	struct stmvl6180_data *vl6180_data = vl6180_data_g;
 	client = i2c_getclient();
 
 	if (vl6180_data->enable_ps_sensor==1){
 //turn off p sensor if it's enabled
 		vl6180_data->enable_ps_sensor = 0;
 		VL6180x_RangeClearInterrupt(vl6180x_dev);
-		
+
 		stmvl6180_set_enable(client, 0);
 
-		spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags); 
+		spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
 /*
 * If work is already scheduled then subsequent schedules will not
 * change the scheduled time that's why we have to cancel it first.
 */
+		CDBG("cancel_delayed_work\n");
 		cancel_delayed_work(&vl6180_data->dwork);
-		spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags); 
+		spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
 	}
 
 	return 0;
 }
-static long stmvl6180_ioctl(struct file *file, 
+static long stmvl6180_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	int ret;
@@ -951,10 +992,10 @@ static int stmvl6180_release(struct inode *inode, struct file *file)
 {
 	int rc = 0;
 
-    	if(vl6180_data_g){		
+    	if(vl6180_data_g){
 		rc = stmvl6180_power_enable(vl6180_data_g, 0);
 		if(rc<0)
-	   		pr_err("%s:%d stmvl6180 power down failed %d\n", __func__, __LINE__, rc);	
+	   		pr_err("%s:%d stmvl6180 power down failed %d\n", __func__, __LINE__, rc);
 	}
 
 	return 0;
@@ -965,7 +1006,7 @@ static const struct file_operations stmvl6180_ranging_fops = {
 		.unlocked_ioctl =	stmvl6180_ioctl,
 		.open =			stmvl6180_open,
 		.flush = 			stmvl6180_flush,
-		.release = 		stmvl6180_release,		
+		.release = 		stmvl6180_release,
 };
 
 static struct miscdevice stmvl6180_ranging_dev = {
@@ -979,7 +1020,7 @@ static struct msm_camera_i2c_fn_t msm_sensor_cci_func_tbl = {
 	.i2c_read = msm_camera_cci_i2c_read,
 	.i2c_read_seq = msm_camera_cci_i2c_read_seq,
 	.i2c_write = msm_camera_cci_i2c_write,
-	.i2c_write_seq = msm_camera_cci_i2c_write_seq,	
+	.i2c_write_seq = msm_camera_cci_i2c_write_seq,
 	.i2c_write_table = msm_camera_cci_i2c_write_table,
 	.i2c_write_seq_table = msm_camera_cci_i2c_write_seq_table,
 	.i2c_write_table_w_microdelay = msm_camera_cci_i2c_write_table_w_microdelay,
@@ -1013,6 +1054,7 @@ static long msm_stmvl6180_subdev_ioctl(struct v4l2_subdev *sd,
 			stmvl6180_set_enable(client, 0);
 
 			spin_lock_irqsave(&vl6180_data->update_lock.wait_lock, flags);
+			CDBG("cancel_delayed_work\n");
 			cancel_delayed_work(&vl6180_data->dwork);
 			spin_unlock_irqrestore(&vl6180_data->update_lock.wait_lock, flags);
 		}
@@ -1068,6 +1110,7 @@ static int stmvl6180_init_client(struct stmvl6180_data *vl6180_data)
 		}
 	}
 	if (id != 0xb4){
+		vl6180_data->force_reset_cnt = 0;
 		pr_err("Not found STM VL6180\n");
 		return -EIO;
 	}
@@ -1083,8 +1126,8 @@ static int stmvl6180_init_client(struct stmvl6180_data *vl6180_data)
 	VL6180x_RdByte(vl6180x_dev, VL6180_MODULE_REV_MAJOR_REG, &module_major);
 	VL6180x_RdByte(vl6180x_dev, VL6180_MODULE_REV_MINOR_REG, &module_minor);
 	CDBG("STM VL6180 Module Version : %d.%d\n", module_major,module_minor);
-	
-	// Read Identification 
+
+	// Read Identification
 	printk("STM VL6180 Serial Numbe: ");
 	for (i=0; i<=(VL6180_FIRMWARE_REVISION_ID_REG-VL6180_REVISION_ID_REG);i++)
 	{
@@ -1092,10 +1135,10 @@ static int stmvl6180_init_client(struct stmvl6180_data *vl6180_data)
 		printk("0x%x-",val);
 	}
 	printk("\n");
-	
+
 
 	vl6180_data->delay_ms=20; //init to 20ms
-	vl6180_data->ps_data=0;			
+	vl6180_data->ps_data=0;
 	vl6180_data->enableDebug=0;
 	vl6180_data->force_reset_cnt = 0;
 #ifdef CALIBRATION_FILE
@@ -1116,7 +1159,7 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 	int rc = 0;
 
 	CDBG("enable %d\n", enable);
-	
+
 	if(enable) {
 #ifdef CALIBRATION_FILE
 		stmvl6180_read_calibration_file();// read calibration file while power up Laser sensor
@@ -1128,17 +1171,17 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 				pr_err("%s:%d gpio request failed for vl6180 rc = %d\n", __func__, __LINE__, rc);
 				return rc;
 			}
-			rc = gpio_request(vl6180_data->irq_gpio,"vl_6180-int"); 
+			rc = gpio_request(vl6180_data->irq_gpio,"vl_6180-int");
 			if(rc < 0){
-				pr_err("%s:%d gpio_request failed, rc=%d", __func__, __LINE__, rc);
+				pr_err("%s:%d gpio_request failed, rc=%d\n", __func__, __LINE__, rc);
 				gpio_free(vl6180_data->ce_gpio);
 				return rc;
 			}
-				
+
 			if (regulator_count_voltages(vl6180_data->vdd_regulator) > 0){
 				rc = regulator_set_voltage(vl6180_data->vdd_regulator, 2850000, 2850000);
 				if (rc) {
-					pr_err( "%s:%d vdd regulator set failed rc=%d\n", __func__, __LINE__, rc);					
+					pr_err( "%s:%d vdd regulator set failed rc=%d\n", __func__, __LINE__, rc);
 					gpio_free(vl6180_data->ce_gpio);
 					gpio_free(vl6180_data->irq_gpio);
 					return rc;
@@ -1146,28 +1189,28 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 			}
 			rc = regulator_enable(vl6180_data->vdd_regulator);
 			if (rc) {
-				pr_err("%s:%d stmvl6180 enable vdd_regulator failed rc=%d\n", __func__, __LINE__, rc);				
+				pr_err("%s:%d stmvl6180 enable vdd_regulator failed rc=%d\n", __func__, __LINE__, rc);
 				gpio_free(vl6180_data->ce_gpio);
-				gpio_free(vl6180_data->irq_gpio);				
+				gpio_free(vl6180_data->irq_gpio);
 				return rc;
-			}			
-			
+			}
+
 			if (regulator_count_voltages(vl6180_data->vdd_regulator_i2c) > 0) {
 				rc = regulator_set_voltage(vl6180_data->vdd_regulator_i2c, 1800000, 1800000);
 				if (rc) {
-					pr_err( "%s:%d vdd_regulator_i2c set failed rc=%d\n", __func__, __LINE__, rc);					
+					pr_err( "%s:%d vdd_regulator_i2c set failed rc=%d\n", __func__, __LINE__, rc);
 					gpio_free(vl6180_data->ce_gpio);
-					gpio_free(vl6180_data->irq_gpio);					
+					gpio_free(vl6180_data->irq_gpio);
 					regulator_disable(vl6180_data->vdd_regulator);
 					return rc;
 				}
 			}
 			rc = regulator_enable(vl6180_data->vdd_regulator_i2c);
 			if(rc){
-				pr_err("%s:%d stmvl6180 power on i2c regulator failed rc=%d \n", __func__, __LINE__, rc);				
+				pr_err("%s:%d stmvl6180 power on i2c regulator failed rc=%d \n", __func__, __LINE__, rc);
 				gpio_free(vl6180_data->ce_gpio);
-				gpio_free(vl6180_data->irq_gpio);				
-				regulator_disable(vl6180_data->vdd_regulator);				
+				gpio_free(vl6180_data->irq_gpio);
+				regulator_disable(vl6180_data->vdd_regulator);
 				return rc;
 			}
 
@@ -1175,21 +1218,21 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 		if (vl6180_data->act_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
 			rc = vl6180_data->i2c_client.i2c_func_tbl->i2c_util(&vl6180_data->i2c_client, MSM_CCI_INIT);
 			if (rc < 0){
-				pr_err("%s:%d cci_init failed rc=%d\n", __func__, __LINE__, rc);				
+				pr_err("%s:%d cci_init failed rc=%d\n", __func__, __LINE__, rc);
 				gpio_free(vl6180_data->ce_gpio);
-				gpio_free(vl6180_data->irq_gpio);				
+				gpio_free(vl6180_data->irq_gpio);
 				regulator_disable(vl6180_data->vdd_regulator_i2c);
 				regulator_disable(vl6180_data->vdd_regulator);
 				return rc;
 			}
-		}		
+		}
 		msleep(5);
-#if 0		
+#if 0
 		rc = gpio_direction_output(vl6180_data->ce_gpio,1);
 		if(rc){
 			pr_err("%s:%d stmvl6180 gpip output failed rc=%d\n", __func__, __LINE__, rc);
 					gpio_free(vl6180_data->ce_gpio);
-					gpio_free(vl6180_data->irq_gpio);			
+					gpio_free(vl6180_data->irq_gpio);
 			regulator_disable(vl6180_data->vdd_regulator_i2c);
 			regulator_disable(vl6180_data->vdd_regulator);
 			return rc;
@@ -1199,32 +1242,32 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 		if(rc){
 			pr_err("%s:%d stmvl6180 gpip output failed rc=%d\n", __func__, __LINE__, rc);
 					gpio_free(vl6180_data->ce_gpio);
-					gpio_free(vl6180_data->irq_gpio);			
+					gpio_free(vl6180_data->irq_gpio);
 			regulator_disable(vl6180_data->vdd_regulator_i2c);
 			regulator_disable(vl6180_data->vdd_regulator);
 			return rc;
 		}
 		msleep(1);
-#endif		
+#endif
 		rc = gpio_direction_output(vl6180_data->ce_gpio,1);
 		if(rc){
 			pr_err("%s:%d stmvl6180 gpip output failed rc=%d\n", __func__, __LINE__, rc);
 			gpio_free(vl6180_data->ce_gpio);
-			gpio_free(vl6180_data->irq_gpio);			
+			gpio_free(vl6180_data->irq_gpio);
 			regulator_disable(vl6180_data->vdd_regulator_i2c);
 			regulator_disable(vl6180_data->vdd_regulator);
 			return rc;
-		}		
+		}
 		msleep(1);
-		vl6180_data->enable = 1;		
+		vl6180_data->enable = 1;
 		}
 	} else {
-		if(vl6180_data->enable){	
+		if(vl6180_data->enable){
 			rc = gpio_direction_output(vl6180_data->ce_gpio,0);
 			if(rc < 0){
 				pr_err("%s:%d stmvl6180 ce_gpio output failed %d\n", __func__, __LINE__, rc);
 //				return -1;
-			}	
+			}
 
 //just cci device need this
 			if (vl6180_data->act_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
@@ -1242,7 +1285,7 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 				if(rc){
 					pr_err("%s:%d stmvl6180 vdd_regulator_i2c disable failed %d\n", __func__, __LINE__, rc);
 //					return -1;
-				}					
+				}
 			}
 
 			if (vl6180_data->vdd_regulator) {
@@ -1250,7 +1293,7 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 				if(rc){
 					pr_err("%s:%d stmvl6180 vdd_regulator disable failed %d\n", __func__, __LINE__, rc);
 			//		return -1;
-				}	
+				}
 			}
 
 			if(gpio_is_valid(vl6180_data->ce_gpio)){
@@ -1258,8 +1301,8 @@ int stmvl6180_power_enable(struct stmvl6180_data *vl6180_data, unsigned int enab
 			}
 			if(gpio_is_valid(vl6180_data->irq_gpio)){
 					gpio_free(vl6180_data->irq_gpio);
-			}			
-						
+			}
+
 			vl6180_data->enable = 0;
 			vl6180_data->enable_ps_sensor = 0;
 		}
@@ -1282,7 +1325,7 @@ static int stmvl6180_parse_dt(struct device *dev, struct stmvl6180_data *vl6180_
 		}
 		vl6180_data->ce_gpio  = of_get_named_gpio(np, "st,standby-gpio", 0);
 		if( vl6180_data->ce_gpio < 0 ) {
-			pr_err("%s:%d get vl6180 ce gpio fained\n", __func__, __LINE__);	
+			pr_err("%s:%d get vl6180 ce gpio fained\n", __func__, __LINE__);
 			return -1;
 		}
 		CDBG("irq_gpio:%d ce_gpio:%d\n", vl6180_data->irq_gpio, vl6180_data->ce_gpio);
@@ -1304,7 +1347,7 @@ static int stmvl6180_parse_dt(struct device *dev, struct stmvl6180_data *vl6180_
 			return -1;
 		}
 	}else{
-		pr_err("%s:%d of_node is NULL", __func__, __LINE__);
+		pr_err("%s:%d of_node is NULL\n", __func__, __LINE__);
 		return -EFAULT;
 	}
 	return ret;
@@ -1350,13 +1393,13 @@ static int32_t stmvl6180_platform_probe(struct platform_device *pdev)
 		int result;
 		vl6180_dbgmsg("%s:%d register_irq:%d\n",__func__, __LINE__, irq);
 		if ((result = request_threaded_irq(irq, NULL, stmvl6180_interrupt_handler, IRQF_TRIGGER_RISING, //IRQF_TRIGGER_FALLING- poliarity:0 IRQF_TRIGGER_RISNG - poliarty:1
-			"vl6180_lb_gpio_int", (void *)client))) 
+			"vl6180_lb_gpio_int", (void *)client)))
 		{
 			pr_err("%s:%d Could not allocate STMVL6180_INT ! result:%d\n", __func__, __LINE__, result);
-	
+
 			goto exit_kfree;
 		}
-	}	
+	}
 	//disable_irq(irq);
 	vl6180_data->irq = irq;
 	vl6180_dbgmsg("%s:%d interrupt is hooked\n", __func__, __LINE__);
@@ -1371,14 +1414,14 @@ static int32_t stmvl6180_platform_probe(struct platform_device *pdev)
 	CDBG("cell-index %d, rc %d\n", pdev->id, rc);
 
 	rc = of_property_read_u32(pdev->dev.of_node, "qcom,cci-master", &vl6180_data->cci_master);
-	if (rc < 0) {	
+	if (rc < 0) {
 		pr_err("%s:%d failed rc %d\n", __func__, __LINE__, rc);
 		goto exit_free_irq;
 	}
 	CDBG("qcom,cci-master %d, rc %d\n", vl6180_data->cci_master, rc);
 
 	rc = stmvl6180_parse_dt(&pdev->dev, vl6180_data);
-	if (rc < 0) {	
+	if (rc < 0) {
 		pr_err("%s:%d failed rc %d\n", __func__, __LINE__, rc);
 		goto exit_free_irq;
 	}
@@ -1416,16 +1459,16 @@ static int32_t stmvl6180_platform_probe(struct platform_device *pdev)
 	/* Initialize the STM VL6180 chip */
 	rc = stmvl6180_init_client(vl6180_data);
 	if (rc){
-		stmvl6180_power_enable(vl6180_data, 0);		
+		stmvl6180_power_enable(vl6180_data, 0);
 		pr_err("%s:%d failed rc %d\n", __func__, __LINE__, rc);
 		goto exit_kfree_client;
 	}
 
 	rc = stmvl6180_power_enable(vl6180_data, 0);
-	if(rc){	
+	if(rc){
 		pr_err("%s:%d failed rc %d\n", __func__, __LINE__, rc);
 		goto exit_kfree_client;
-	}	
+	}
 #ifdef VENDOR_EDIT
 	v4l2_subdev_init(&vl6180_data->msm_sd.sd,
 		vl6180_data->v4l2_subdev_ops);
@@ -1440,24 +1483,24 @@ static int32_t stmvl6180_platform_probe(struct platform_device *pdev)
 
 	//to register as a misc device
 	rc = misc_register(&stmvl6180_ranging_dev);
-	if (rc){	
+	if (rc){
 		pr_err(KERN_INFO "%s:%d Could not register misc. dev for stmvl6180 ranging\n", __func__, __LINE__);
 		goto exit_kfree_client;
 	}
-	
+
 //new driver start
 /* Register to Input Device */
 	vl6180_data->input_dev_ps = input_allocate_device();
 	if (!vl6180_data->input_dev_ps) {
 		rc = -ENOMEM;
-		pr_err("%s:%d Failed to allocate input device ps\n", __func__, __LINE__);				
+		pr_err("%s:%d Failed to allocate input device ps\n", __func__, __LINE__);
 		goto exit_kfree_client;
 	}
-	
+
 	vl6180_data->input_dev_ps->name = "STM VL6180 proximity sensor";
 	set_bit(EV_ABS, vl6180_data->input_dev_ps->evbit);
 
-	input_set_abs_params(vl6180_data->input_dev_ps, ABS_DISTANCE, 0, 76, 0, 0); //range in cm 
+	input_set_abs_params(vl6180_data->input_dev_ps, ABS_DISTANCE, 0, 76, 0, 0); //range in cm
 	input_set_abs_params(vl6180_data->input_dev_ps, ABS_HAT0X, 0, 0xffffffff, 0, 0); //timeval.tv_sec
 	input_set_abs_params(vl6180_data->input_dev_ps, ABS_HAT0Y, 0, 0xffffffff, 0, 0); //timeval.tv_usec
 	input_set_abs_params(vl6180_data->input_dev_ps, ABS_HAT1X, 0, 765, 0, 0); //range in mm
@@ -1470,30 +1513,30 @@ static int32_t stmvl6180_platform_probe(struct platform_device *pdev)
 	rc = input_register_device(vl6180_data->input_dev_ps);
 	if (rc<0){
 		rc = -ENOMEM;
-		pr_err("%s:%d Unable to register input device ps: %s\n",__func__, __LINE__, vl6180_data->input_dev_ps->name);					
+		pr_err("%s:%d Unable to register input device ps: %s\n",__func__, __LINE__, vl6180_data->input_dev_ps->name);
 		goto exit_free_dev_ps;
 	}
 
 /* Register sysfs hooks */
 	rc = sysfs_create_group(&vl6180_data->pdev->dev.kobj, &stmvl6180_attr_group);
 	if (rc<0){
-		pr_err("%s%d Unable to create sysfs group\n",__func__, __LINE__);				
+		pr_err("%s%d Unable to create sysfs group\n",__func__, __LINE__);
 		goto exit_unregister_dev_ps;
 	}
 
-	INIT_DELAYED_WORK(&vl6180_data->dwork, stmvl6180_work_handler);	
+	INIT_DELAYED_WORK(&vl6180_data->dwork, stmvl6180_work_handler);
 
 	CDBG("support ver. %s enabled\n", DRIVER_VERSION);
 
 //new driver end
 	return 0;
-	
+
 exit_unregister_dev_ps:
-	input_unregister_device(vl6180_data->input_dev_ps);	
+	input_unregister_device(vl6180_data->input_dev_ps);
 exit_free_dev_ps:
 	input_free_device(vl6180_data->input_dev_ps);
 exit_kfree_client:
-	kfree(vl6180_data->i2c_client.cci_client);	
+	kfree(vl6180_data->i2c_client.cci_client);
 exit_free_irq:
 #ifdef USE_INT
 	free_irq(irq, client);
@@ -1502,7 +1545,7 @@ exit_free_irq:
 	kfree(vl6180_data);
 	vl6180_data_g = NULL;
 //exit:
-	return rc;	
+	return rc;
 }
 
 
@@ -1539,13 +1582,13 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		goto exit;
 	}
 
-//parse dtsi file 
+//parse dtsi file
 	if (client->dev.of_node) {
 		err = stmvl6180_parse_dt(&client->dev, vl6180_data);
-		if (err < 0) {	
+		if (err < 0) {
 			pr_err("%s:%d parse dt failed err %d\n", __func__, __LINE__, err);
 			goto exit_kfree;
-		}	
+		}
 	} else {
 		pr_err("%s:%d of_node NULL\n", __func__, __LINE__);
 		goto exit_kfree;
@@ -1554,11 +1597,11 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	vl6180_data->client = client;
 	i2c_set_clientdata(client, vl6180_data);
 	vl6180_data->enable = 0;		/* default mode is standard */
-	vl6180_data_g = vl6180_data;	
+	vl6180_data_g = vl6180_data;
 
 	// setup platform i2c client
 	i2c_setclient(client);
-	//vl6180x_dev.I2cAddress = client->addr;	
+	//vl6180x_dev.I2cAddress = client->addr;
 
 	mutex_init(&vl6180_data->update_lock);
 	mutex_init(&vl6180_data->work_mutex);
@@ -1578,12 +1621,12 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		int result;
 		vl6180_dbgmsg("register_irq:%d\n",irq);
 		if ((result = request_threaded_irq(irq, NULL, stmvl6180_interrupt_handler, IRQF_TRIGGER_RISING, //IRQF_TRIGGER_FALLING- poliarity:0 IRQF_TRIGGER_RISNG - poliarty:1
-			"vl6180_lb_gpio_int", (void *)client))) 
+			"vl6180_lb_gpio_int", (void *)client)))
 		{
 			pr_err("%s Could not allocate STMVL6180_INT ! result:%d\n", __func__,result);
 			goto exit_kfree;
 		}
-	}	
+	}
 	//disable_irq(irq);
 	vl6180_data->irq = irq;
 	vl6180_dbgmsg("%s interrupt is hooked\n", __func__);
@@ -1618,7 +1661,7 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	/* Initialize the STM VL6180 chip */
 	err = stmvl6180_init_client(vl6180_data);
 	if (err) {
-		stmvl6180_power_enable(vl6180_data, 0);	
+		stmvl6180_power_enable(vl6180_data, 0);
 		pr_err("%s:%d failed err %d\n", __func__, __LINE__, err);
 		goto exit_kfree_client;
 	}
@@ -1627,7 +1670,7 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	if(err) {
 		pr_err("%s:%d failed err %d\n", __func__, __LINE__, err);
 		goto exit_kfree_client;
-	}	
+	}
 	INIT_DELAYED_WORK(&vl6180_data->dwork, stmvl6180_work_handler);
 #ifdef VENDOR_EDIT
 	v4l2_subdev_init(&vl6180_data->msm_sd.sd,
@@ -1655,10 +1698,10 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		pr_err("%s:%d Failed to allocate input device ps\n",__func__, __LINE__);
 		goto exit_kfree_client;
 	}
-	vl6180_data->input_dev_ps->name = "STM VL6180 proximity sensor";	
+	vl6180_data->input_dev_ps->name = "STM VL6180 proximity sensor";
 	set_bit(EV_ABS, vl6180_data->input_dev_ps->evbit);
 
-	input_set_abs_params(vl6180_data->input_dev_ps, ABS_DISTANCE, 0, 76, 0, 0); //range in cm 
+	input_set_abs_params(vl6180_data->input_dev_ps, ABS_DISTANCE, 0, 76, 0, 0); //range in cm
 	input_set_abs_params(vl6180_data->input_dev_ps, ABS_HAT0X, 0, 0xffffffff, 0, 0); //timeval.tv_sec
 	input_set_abs_params(vl6180_data->input_dev_ps, ABS_HAT0Y, 0, 0xffffffff, 0, 0); //timeval.tv_usec
 	input_set_abs_params(vl6180_data->input_dev_ps, ABS_HAT1X, 0, 765, 0, 0); //range in mm
@@ -1671,14 +1714,14 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	err = input_register_device(vl6180_data->input_dev_ps);
 	if (err) {
 		err = -ENOMEM;
-		pr_err("%s:%d Unable to register input device ps: %s\n",__func__, __LINE__, vl6180_data->input_dev_ps->name);	
+		pr_err("%s:%d Unable to register input device ps: %s\n",__func__, __LINE__, vl6180_data->input_dev_ps->name);
 		goto exit_free_dev_ps;
 	}
 
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &stmvl6180_attr_group);
 	if (err){
-		pr_err("%s%d Unable to create sysfs group\n",__func__, __LINE__);		
+		pr_err("%s%d Unable to create sysfs group\n",__func__, __LINE__);
 		goto exit_unregister_dev_ps;
 	}
 
@@ -1687,7 +1730,7 @@ static int stmvl6180_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	return 0;
 
 exit_unregister_dev_ps:
-	input_unregister_device(vl6180_data->input_dev_ps);	
+	input_unregister_device(vl6180_data->input_dev_ps);
 exit_free_dev_ps:
 	input_free_device(vl6180_data->input_dev_ps);
 exit_kfree_client:
@@ -1705,7 +1748,7 @@ exit:
 static int stmvl6180_i2c_remove(struct i2c_client *client)
 {
 	struct stmvl6180_data *vl6180_data = vl6180_data_g;
-	
+
 	input_unregister_device(vl6180_data->input_dev_ps);
 	input_free_device(vl6180_data->input_dev_ps);
 
@@ -1762,7 +1805,7 @@ static struct i2c_driver stmvl6180_i2c_driver = {
 };
 
 static int __init stmvl6180_init(void)
-{	
+{
 	int rc=0;
 #if 0
 	struct i2c_adapter *adapter;
@@ -1770,30 +1813,30 @@ static int __init stmvl6180_init(void)
 		.type = "stmvl6180",
 		.addr = VL6180_I2C_ADDRESS,
 	};
-#endif	
+#endif
 	CDBG("start stmvl6180_init\n");
-	rc = platform_driver_probe(&stmvl6180_platform_driver, stmvl6180_platform_probe);	
+	rc = platform_driver_probe(&stmvl6180_platform_driver, stmvl6180_platform_probe);
 
 	if(rc){
-		pr_err("%s:%d platform device register failed, try to register as I2C device\n", __func__, __LINE__);		
+		pr_err("%s:%d platform device register failed, try to register as I2C device\n", __func__, __LINE__);
 		rc = i2c_add_driver(&stmvl6180_i2c_driver);
 	}
 
 #if 0
 	if(ret){
 		ret = i2c_add_driver(&stmvl6180_driver);
-		if (ret) 
+		if (ret)
 			return ret;
 		adapter = i2c_get_adapter(4);
-		if (!adapter) 
+		if (!adapter)
 			return -EINVAL;
-	
+
 		client = i2c_new_device(adapter, &info);
-		if (!client) 
+		if (!client)
 			return -EINVAL;
 	}
-#endif	
-	return rc;	
+#endif
+	return rc;
 }
 
 static void __exit stmvl6180_exit(void)
@@ -1817,10 +1860,10 @@ static void __exit stmvl6180_exit(void)
 		kfree(vl6180_data_g->i2c_client.cci_client);
 	if(vl6180_data_g){
 		kfree(vl6180_data_g);
-		vl6180_data_g = NULL;	
+		vl6180_data_g = NULL;
 	}
 
-	platform_driver_unregister(&stmvl6180_platform_driver);	
+	platform_driver_unregister(&stmvl6180_platform_driver);
 	i2c_del_driver(&stmvl6180_i2c_driver);
 }
 

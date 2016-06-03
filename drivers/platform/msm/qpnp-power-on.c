@@ -85,7 +85,6 @@
 #define QPNP_PON_S3_SRC(base)			(base + 0x74)
 #define QPNP_PON_S3_DBC_CTL(base)		(base + 0x75)
 #define QPNP_PON_TRIGGER_EN(base)		(base + 0x80)
-#define QPNP_PON_PERPH_RB_SPARE(base)		(base + 0x8C)
 #define QPNP_PON_XVDD_RB_SPARE(base)		(base + 0x8E)
 #define QPNP_PON_SOFT_RB_SPARE(base)		(base + 0x8F)
 #define QPNP_PON_SEC_ACCESS(base)		(base + 0xD0)
@@ -124,9 +123,6 @@
 #define QPNP_PON_HARD_RESET_MASK		PON_MASK(7, 5)
 
 #define QPNP_PON_UVLO_DLOAD_EN		BIT(7)
-
-#define QPNP_PON_RB_SPARE_MASK		BIT(1)
-
 
 /* Ranges */
 #define QPNP_PON_S1_TIMER_MAX			10256
@@ -254,6 +250,7 @@ static int warm_boot;
 module_param(warm_boot, int, 0);
 
 #ifdef VENDOR_EDIT
+/* add by yangrujin@bsp 2015/10/16, a interface to know powron/off reasons*/
 static bool created_pwr_on_off_obj;
 
 #define PMIC_SID_NUM 3
@@ -495,44 +492,6 @@ bool qpnp_pon_check_hard_reset_stored(void)
 	return pon->store_hard_reset_reason;
 }
 EXPORT_SYMBOL(qpnp_pon_check_hard_reset_stored);
-int qpnp_pon_set_rb_spare(struct device_node *dev_node, bool en)
-{
-	struct qpnp_pon *pon, *tmp;
-	int rc;
-	u8 val;
-	bool found = false;
-
-	if (!dev_node)
-		return -EINVAL;
-
-	mutex_lock(&spon_list_mutex);
-	if (list_empty(&spon_dev_list))
-		goto out;
-
-	list_for_each_entry_safe(pon, tmp, &spon_dev_list, list) {
-		if (pon->spmi->dev.of_node == dev_node) {
-			found = true;
-			break;
-		}
-	}
-out:
-	mutex_unlock(&spon_list_mutex);
-
-	if (!found || !pon)
-		return -EINVAL;
-
-	val = en ? QPNP_PON_RB_SPARE_MASK : 0x0;
-	rc = qpnp_pon_masked_write(pon, QPNP_PON_PERPH_RB_SPARE(pon->base),
-				QPNP_PON_RB_SPARE_MASK, val);
-	if (rc) {
-		dev_err(&pon->spmi->dev, "Unable to set PON debounce\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(qpnp_pon_set_rb_spare);
-
 
 static int qpnp_pon_set_dbc(struct qpnp_pon *pon, u32 delay)
 {
@@ -873,7 +832,15 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	switch (cfg->pon_type) {
 	case PON_KPDPWR:
 		pon_rt_bit = QPNP_PON_KPDPWR_N_SET;
-		break;
+        //#ifdef VENDOR_EDIT
+        // neiltsai, 20151203, add for power key debug only!!
+        if ((pon_rt_sts & pon_rt_bit) == 0)
+              printk("Power-Key UP\n");
+        else
+              printk("Power-Key DOWN\n");
+        // neil end
+        //#endif /* VENDOR_EDIT */
+        break;
 	case PON_RESIN:
 		pon_rt_bit = QPNP_PON_RESIN_N_SET;
 		break;
@@ -887,8 +854,8 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		return -EINVAL;
 	}
 
-	printk("PMIC input: code=%d, sts=0x%hhx, pon_rt_bit=0x%x, cfg->old_state=0x%x\n",
-					cfg->key_code, pon_rt_sts, pon_rt_bit, cfg->old_state);
+	pr_debug("PMIC input: code=%d, sts=0x%hhx\n",
+					cfg->key_code, pon_rt_sts);
 	key_status = pon_rt_sts & pon_rt_bit;
 
 	/* simulate press event in case release event occured
@@ -1091,6 +1058,43 @@ static irqreturn_t qpnp_resin_bark_irq(int irq, void *_pon)
 err_exit:
 	return IRQ_HANDLED;
 }
+#ifdef VENDOR_EDIT //shankai@bsp , add for support long press pwr key 3s to enter dload mode
+static int qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg);
+
+static unsigned int pwr_dump_enabled = 0;
+static int param_set_pwr_dump_enabled(const char *val, struct kernel_param *kp)
+{
+	unsigned long enable;
+        struct qpnp_pon *pon = sys_reset_dev;
+        struct qpnp_pon_config *cfg = NULL;
+        int rc;
+
+	if (!val || strict_strtoul(val, 0, &enable) || enable > 1)
+		return -EINVAL;
+
+	cfg = qpnp_get_cfg(pon, 0); //0 means pwr key
+	if (!cfg)
+		return -EINVAL;
+
+        pr_info("pwr_dump_enabled = %d and request enable = %d\n", pwr_dump_enabled, (unsigned int)enable);
+        if(pwr_dump_enabled !=enable){
+            cfg->s1_timer = 1352;//reduce this time
+            rc = qpnp_config_reset(pon, cfg);
+	    if (rc)
+                dev_err(&pon->spmi->dev,"Unable to config pon reset\n");
+
+            if(enable)//if we need enable this feature, we should diable wakeup capability
+                disable_irq_wake(cfg->state_irq);
+            else
+                enable_irq_wake(cfg->state_irq);
+            pwr_dump_enabled = enable;
+        }
+	return 0;
+}
+
+module_param_call(pwr_dump_enabled, param_set_pwr_dump_enabled, param_get_uint, &pwr_dump_enabled, 0644);
+
+#endif //VENDOR_EDIT
 
 static int
 qpnp_config_pull(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
@@ -2050,6 +2054,7 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	}
 
 #ifdef VENDOR_EDIT
+/* add by yangrujin@bsp 2015/10/16, a interface to know powron/off reasons*/
     if((pon->spmi->sid)>=0 && (pon->spmi->sid)<PMIC_SID_NUM){
         g_pon[pon->spmi->sid] = pon;
         g_is_cold_boot[pon->spmi->sid] = cold_boot;
@@ -2206,6 +2211,7 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 					"qcom,store-hard-reset-reason");
 
 #ifdef VENDOR_EDIT
+/* add by yangrujin@bsp 2015/10/16, a interface to know powron/off reasons*/
     if(!created_pwr_on_off_obj){
         pwr_on_off_kobj = kobject_create_and_add("pwr_on_off_reason", NULL);
         if (!pwr_on_off_kobj){

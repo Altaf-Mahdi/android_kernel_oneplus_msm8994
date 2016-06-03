@@ -1019,6 +1019,7 @@ int mdss_mdp_csc_setup_data(u32 block, u32 blk_idx, struct mdp_csc_cfg *data);
 
 int mdss_mdp_pp_init(struct device *dev);
 void mdss_mdp_pp_term(struct device *dev);
+int mdss_mdp_pp_override_pu(int enable);
 int mdss_mdp_pp_overlay_init(struct msm_fb_data_type *mfd);
 
 int mdss_mdp_pp_resume(struct mdss_mdp_ctl *ctl, u32 mixer_num);
@@ -1159,6 +1160,9 @@ int mdss_mdp_cmd_set_autorefresh_mode(struct mdss_mdp_ctl *ctl,
 		int frame_cnt);
 int mdss_mdp_ctl_cmd_autorefresh_enable(struct mdss_mdp_ctl *ctl,
 		int frame_cnt);
+#ifdef VENDOR_EDIT
+void mdss_debug_enable_clock(int on);
+#endif
 int mdss_mdp_user_pcc_config(struct mdp_pcc_cfg_data *config);
 
 #endif /* MDSS_MDP_H */

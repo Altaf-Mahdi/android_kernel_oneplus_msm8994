@@ -596,6 +596,7 @@ static void store_cdrom_address(u8 *dest, int msf, u32 addr)
 	}
 }
 
+/*Anderson-01+[*/
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
 #ifndef VENDOR_EDIT
 /**
@@ -663,6 +664,7 @@ static int fsg_get_toc(struct fsg_lun *curlun, int msf, int format, u8 *buf)
 }
 #endif
 //end add by jiachenghui for cdrom suport MAC OSX,2015-06-30
+/*Anderson-01+]*/
 
 /*-------------------------------------------------------------------------*/
 

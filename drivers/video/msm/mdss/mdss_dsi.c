@@ -32,7 +32,7 @@
 #define XO_CLK_RATE	19200000
 
 #ifdef VENDOR_EDIT/*guozhiming@oem_display add for the RF WLAN mode using*/
-#include <linux/boot_mode.h>
+//#include <linux/boot_mode.h>
 
 //static int rf_wlan_test_mode=0;
 
@@ -104,7 +104,7 @@ static int mdss_dsi_labibb_vreg_ctrl(struct mdss_dsi_ctrl_pdata *ctrl,
 			regulator_disable(ctrl->lab);
 			return rc;
 		}
-		mdelay(20);
+		msleep(20);
 
 	} else {
 	    if (!syna_use_gesture){
@@ -153,7 +153,7 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev)
 			pr_err("%s: failed to init vregs for %s\n",
 				__func__, __mdss_dsi_pm_name(i));
 	}
-
+	
 	mdss_dsi_labibb_vreg_init(pdev);
 
 	return rc;
@@ -168,7 +168,7 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int i = 0;
 
-    pr_err("%s\n",__func__); //for debug
+  //  pr_err("%s\n",__func__); //for debug
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -241,7 +241,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int i = 0;
 
-    pr_err("%s\n",__func__);//for debug
+  //  pr_err("%s--start\n",__func__);//for debug
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -249,7 +249,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	}
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
-
 	for (i = 0; i < DSI_MAX_PM; i++) {
 		/*
 		 * Core power module will be enabled when the
@@ -297,6 +296,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		!pdata->panel_info.mipi.lp11_init) {
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
+
 		ret = mdss_dsi_panel_reset(pdata, 1);
 		if (ret)
 			pr_err("%s: Panel reset failed. rc=%d\n",
@@ -772,7 +772,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		goto end;
 	}
 
-	#ifdef VENDOR_EDIT /*guozhiming add for RF and WLAN mode */
+	#ifndef VENDOR_EDIT /*guozhiming add for RF and WLAN mode */
         if((get_boot_mode() !=MSM_BOOT_MODE__RF)&&(get_boot_mode() !=MSM_BOOT_MODE__WLAN))
 		ret = mdss_dsi_panel_power_ctrl(pdata, MDSS_PANEL_POWER_ON);
 	#else
@@ -826,7 +826,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		if (syna_use_gesture)
 			msleep(25);
 		else
-			msleep(15);
+			msleep(12);
 		mdss_dsi_panel_reset(pdata, 1);
 		if (syna_use_gesture)
 			msleep(30);
@@ -936,7 +936,6 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 			ret = ctrl_pdata->low_power_config(pdata, false);
 		goto error;
 	}
-
 	if (!(ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT)) {
 		if (!pdata->panel_info.dynamic_switch_pending) {
 			ret = ctrl_pdata->on(pdata);
@@ -2205,30 +2204,30 @@ int dsi_panel_device_register(struct device_node *pan_node,
 				__func__, __LINE__);
 #endif
 	ctrl_pdata->bklt_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-			"qcom,platform-bklight-en-gpio", 0);
+		"qcom,platform-bklight-en-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->bklt_en_gpio))
 		pr_info("%s: bklt_en gpio not specified\n", __func__);
 
 	ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-			"qcom,platform-reset-gpio", 0);
+			 "qcom,platform-reset-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
 		pr_err("%s:%d, reset gpio not specified\n",
-				__func__, __LINE__);
+						__func__, __LINE__);
 
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {
 
 		ctrl_pdata->mode_gpio = of_get_named_gpio(
-				ctrl_pdev->dev.of_node,
-				"qcom,platform-mode-gpio", 0);
+					ctrl_pdev->dev.of_node,
+					"qcom,platform-mode-gpio", 0);
 		if (!gpio_is_valid(ctrl_pdata->mode_gpio))
 			pr_info("%s:%d, mode gpio not specified\n",
-					__func__, __LINE__);
+							__func__, __LINE__);
 	} else {
 		ctrl_pdata->mode_gpio = -EINVAL;
 	}
 
 	ctrl_pdata->timing_db_mode = of_property_read_bool(
-			ctrl_pdev->dev.of_node, "qcom,timing-db-mode");
+		ctrl_pdev->dev.of_node, "qcom,timing-db-mode");
 
 	if (mdss_dsi_clk_init(ctrl_pdev, ctrl_pdata)) {
 		pr_err("%s: unable to initialize Dsi ctrl clks\n", __func__);
@@ -2309,8 +2308,8 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			return rc;
 		}
 	}
-	if (pinfo->cont_splash_enabled){
 
+	if (pinfo->cont_splash_enabled) {
 		rc = mdss_dsi_panel_power_ctrl(&(ctrl_pdata->panel_data),
 			MDSS_PANEL_POWER_ON);
 		if (rc) {

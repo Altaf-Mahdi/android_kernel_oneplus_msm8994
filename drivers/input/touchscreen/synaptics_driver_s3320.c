@@ -81,6 +81,7 @@
 #define SUPPORT_GESTURE
 #define RESET_ONESECOND
 //#define SUPPORT_GLOVES_MODE
+#define SUPPORT_VIRTUAL_KEY
 
 #define SUPPORT_TP_SLEEP_MODE
 #define TYPE_B_PROTOCOL      //Multi-finger operation
@@ -471,6 +472,9 @@ struct synaptics_ts_data {
 	struct delayed_work speed_up_work;
 	struct input_dev *input_dev;
 	struct hrtimer timer;
+#ifdef SUPPORT_VIRTUAL_KEY
+    struct kobject *properties_kobj;
+#endif
 #if defined(CONFIG_FB)
 	struct notifier_block fb_notif;
 #endif
@@ -898,7 +902,7 @@ static int synaptics_enable_interrupt(struct synaptics_ts_data *ts, int enable)
 	int ret;
 	uint8_t abs_status_int;
 
-	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
+	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0); 
 	if( ret < 0 ) {
 		TPDTM_DMESG("synaptics_enable_interrupt: select page failed ret = %d\n",
 		    ret);
@@ -913,8 +917,8 @@ static int synaptics_enable_interrupt(struct synaptics_ts_data *ts, int enable)
 			return -1;
 		}
 	} else {
-		abs_status_int = 0x0;
-	}
+		abs_status_int = 0x0;		
+	}	
 	ret = synaptics_rmi4_i2c_write_byte(ts->client, F01_RMI_CTRL00+1, abs_status_int);
 	if( ret < 0 ) {
 		TPDTM_DMESG("%s: enable or disable abs \
@@ -922,7 +926,7 @@ static int synaptics_enable_interrupt(struct synaptics_ts_data *ts, int enable)
 		return -1;
 	}
 	ret = synaptics_rmi4_i2c_read_byte(ts->client, F01_RMI_CTRL00+1);
-	return 0;
+	return 0;	
 }
 
 static void delay_qt_ms(unsigned long  w_ms)
@@ -1201,7 +1205,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 #endif
 // carlo@oneplus.net 2015-05-25, end.
 
-	TPD_ERR("detect %s gesture\n", gesture == DouTap ? "double tap" :
+	TPD_DEBUG("detect %s gesture\n", gesture == DouTap ? "double tap" :
 			gesture == UpVee ? "(V)" :
 			gesture == DownVee ? "(^)" :
 			gesture == LeftVee ? "(>)" :
@@ -1242,15 +1246,34 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 #endif
 /***************end****************/
 static char prlog_count = 0;
-static void int_touch(struct synaptics_ts_data *ts)
+
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
+extern struct completion key_cm;
+extern bool key_back_pressed;
+extern bool key_appselect_pressed;
+extern bool key_home_pressed;
+extern bool virtual_key_enable;
+#endif
+
+void int_touch(void)
 {
+        struct synaptics_ts_data *ts;
 	int ret = -1,i = 0;
 	uint8_t buf[80];
 	uint8_t finger_num = 0;
 	uint8_t finger_status = 0;
 	struct point_info points;
 	uint32_t finger_info = 0;
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
+	bool key_appselect_check = false;
+	bool key_back_check = false;
+	bool key_home_check = false;
+	bool key_pressed = key_appselect_pressed || key_back_pressed || key_home_pressed;
+#endif
 
+        if (ts_g == NULL)
+            return;
+        ts = ts_g;
 	memset(buf, 0, sizeof(buf));
 	points.x = 0;
 	points.y = 0;
@@ -1270,7 +1293,56 @@ static void int_touch(struct synaptics_ts_data *ts)
 		points.raw_y = buf[i*8+7] & 0x0f;
 		points.z = buf[i*8+5];
 		finger_info <<= 1;
-		finger_status =  points.status & 0x03;
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system  
+		if(virtual_key_enable){
+			if(points.y > 0x770 && key_pressed){
+					TPD_DEBUG("Drop TP event due to key pressed\n");
+					finger_status = 0;
+			}else{
+				finger_status =  points.status & 0x03;
+			}
+		}else{
+	        finger_status =  points.status & 0x03;
+		}
+#endif
+
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system 
+		if(virtual_key_enable){
+                if (!finger_status){
+                    if (key_appselect_pressed && !key_appselect_check){
+                        points.x = 0xb4;
+                        points.y = 0x7e2;
+                        points.z = 0x33;
+                        points.raw_x = 4;
+                        points.raw_y = 6;
+		        key_appselect_check = true;
+                        points.status = 1;
+                        finger_status =  points.status & 0x03;
+                    }else if (key_back_pressed && !key_back_check){
+                        points.x = 0x384;
+                        points.y = 0x7e2;
+                        points.z = 0x33;
+                        points.raw_x = 4;
+                        points.raw_y = 6;
+		        key_back_check = true;
+                        points.status = 1;
+                        finger_status =  points.status & 0x03;
+                    }else if(key_home_pressed && !key_home_check){
+                        points.x = 0x21c;
+                        points.y = 0x7e2;
+                        points.z = 0x33;
+                        points.raw_x = 4;
+                        points.raw_y = 6;
+		        key_home_check = true;
+                        points.status = 1;
+                        finger_status =  points.status & 0x03;               
+	            }else{
+                        //TPD_DEBUG(" finger %d with !finger_statue and no key match\n",i);
+                    }
+                }
+		}
+#endif
+
 		if (finger_status) {
 			input_mt_slot(ts->input_dev, i);
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, finger_status);
@@ -1285,7 +1357,11 @@ static void int_touch(struct synaptics_ts_data *ts)
 #ifndef TYPE_B_PROTOCOL
 			input_mt_sync(ts->input_dev);
 #endif
-
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system 
+			if(virtual_key_enable){
+                complete(&key_cm);
+			}
+#endif
 			finger_num++;
 			finger_info |= 1 ;
 			TPD_DEBUG("%s: Finger %d: status = 0x%02x "
@@ -1325,7 +1401,7 @@ static void int_touch(struct synaptics_ts_data *ts)
 	}
 #endif
 }
-
+EXPORT_SYMBOL(int_touch);
 static void synaptics_ts_work_func(struct work_struct *work)
 {
 	int ret;
@@ -1351,7 +1427,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		goto END;
 	}
 	if( inte & 0x04 ) {
-		int_touch(ts);
+		int_touch();
 	}
 END:
     ret = set_changer_bit(ts);
@@ -3245,7 +3321,60 @@ static int synaptics_parse_dts(struct device *dev, struct synaptics_ts_data *ts)
 
 	return rc;
 }
+#ifdef SUPPORT_VIRTUAL_KEY
+#define VK_KEY_X    180
+#define VK_CENTER_Y 2018//2260
+#define VK_WIDTH    170
+#define VK_HIGHT    200
+static ssize_t vk_syna_show(struct kobject *kobj,
+        struct kobj_attribute *attr, char *buf)
+{
+    int len ;
 
+    len =  sprintf(buf,
+            __stringify(EV_KEY) ":" __stringify(KEY_APPSELECT)  ":%d:%d:%d:%d"
+            ":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)  ":%d:%d:%d:%d"
+            ":" __stringify(EV_KEY) ":" __stringify(KEY_BACK)  ":%d:%d:%d:%d" "\n",
+            VK_KEY_X,   VK_CENTER_Y, VK_WIDTH, VK_HIGHT,
+            VK_KEY_X*3, VK_CENTER_Y, VK_WIDTH, VK_HIGHT,
+            VK_KEY_X*5, VK_CENTER_Y, VK_WIDTH, VK_HIGHT);
+
+    return len ;
+}
+
+static struct kobj_attribute vk_syna_attr = {
+    .attr = {
+        .name = "virtualkeys."TPD_DEVICE,
+        .mode = S_IRUGO,
+    },
+    .show = &vk_syna_show,
+};
+
+static struct attribute *syna_properties_attrs[] = {
+    &vk_syna_attr.attr,
+    NULL
+};
+
+static struct attribute_group syna_properties_attr_group = {
+    .attrs = syna_properties_attrs,
+};
+static int synaptics_ts_init_virtual_key(struct synaptics_ts_data *ts )
+{
+    int ret = 0;
+    
+    /* virtual keys */
+    if(ts->properties_kobj)
+        return 0 ;
+    ts->properties_kobj = kobject_create_and_add("board_properties", NULL);
+    if (ts->properties_kobj)
+        ret = sysfs_create_group(ts->properties_kobj, &syna_properties_attr_group);
+
+    if (!ts->properties_kobj || ret)
+        printk("%s: failed to create board_properties\n", __func__);
+    /* virtual keys */
+    return ret;
+}
+#endif
 static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 #ifdef CONFIG_SYNAPTIC_RED
@@ -3277,6 +3406,10 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 	ret = tpd_power(ts, 1);
 	if( ret < 0 )
 		TPD_ERR("regulator_enable is called\n");
+
+#ifdef VENDOR_EDIT //WayneChang, 2016/1/5, set 80~100ms delay for device getting ready after power on
+    msleep(100);
+#endif
 
 	mutex_init(&ts->mutex);
     atomic_set(&ts->irq_enable,0);
@@ -3434,7 +3567,9 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 		TPDTM_DMESG("driver_create_file failt\n");
 		goto exit_init_failed;
 	}
-
+#ifdef SUPPORT_VIRTUAL_KEY
+    synaptics_ts_init_virtual_key(ts);
+#endif
 #ifdef CONFIG_SYNAPTIC_RED
 	premote_data = remote_alloc_panel_data();
 	if(premote_data) {

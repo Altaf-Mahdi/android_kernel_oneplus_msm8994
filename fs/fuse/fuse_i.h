@@ -582,7 +582,7 @@ struct fuse_conn {
 	int ctl_ndents;
 
 #ifdef VENDOR_EDIT
-//hefaxi@filesystems, 2015/06/17, add for reserved memory
+//liochen@filesystems, 2016/01/04, add for reserved memory
 	unsigned reserved_mem;
 #endif
 

@@ -19,6 +19,7 @@
 #include <linux/qpnp/clkdiv.h>
 #include <linux/regulator/consumer.h>
 #include <linux/io.h>
+#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/switch.h>
 #include <sound/core.h>
@@ -30,6 +31,7 @@
 #include <sound/q6core.h>
 #include <sound/pcm_params.h>
 #include <soc/qcom/liquid_dock.h>
+#include <sound/sounddebug.h>
 #include "device_event.h"
 #include "qdsp6v2/msm-pcm-routing-v2.h"
 #include "../codecs/wcd9xxx-common.h"
@@ -264,8 +266,7 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
     .detect_extn_cable = false,
 #endif
 
-    //qualcomm modify
-	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET | 1 << MBHC_MICBIAS_ENABLE_REGULAR_HEADSET,
+	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET,
 	.insert_detect = true,
 	.swap_gnd_mic = NULL,
 	.cs_enable_flags = (1 << MBHC_CS_ENABLE_POLLING |
@@ -281,6 +282,23 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 #else
 	.hw_jack_type = FOUR_POLE_JACK,
 #endif
+
+#ifndef VENDOR_EDIT
+/* zhiguang.su@MultiMedia.AudioDrv,2015-12-02,change for button detect */
+	.key_code[0] = KEY_MEDIA,
+	.key_code[1] = KEY_VOICECOMMAND,
+	.key_code[2] = KEY_VOLUMEUP,
+	.key_code[3] = KEY_VOLUMEDOWN,
+#else
+	.key_code[0] = KEY_MEDIA,
+	.key_code[1] = KEY_VOLUMEUP,
+	.key_code[2] = KEY_VOLUMEDOWN,
+	.key_code[3] = 0,
+#endif
+	.key_code[4] = 0,
+	.key_code[5] = 0,
+	.key_code[6] = 0,
+	.key_code[7] = 0,
 };
 
 #ifndef VENDOR_EDIT
@@ -2152,6 +2170,77 @@ static int msm_tx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+#ifndef VENDOR_EDIT
+ /* add begin by zhiguang.su@MultiMedia.AudioDrv on 2015-11-10,remove when upgrade */
+static int msm8994_mi2s_snd_startup(struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct msm8994_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	struct msm_pinctrl_info *pinctrl_info = &pdata->pinctrl_info;
+
+	pr_debug("%s: substream = %s  stream = %d\n", __func__,
+		substream->name, substream->stream);
+
+	if (pinctrl_info == NULL) {
+		pr_err("%s: pinctrl_info is NULL\n", __func__);
+		ret = -EINVAL;
+		goto err;
+	}
+	if (pdata->pri_mux != NULL)
+		iowrite32(I2S_PCM_SEL_I2S << I2S_PCM_SEL_OFFSET,
+				pdata->pri_mux);
+	else
+		pr_err("%s: MI2S muxsel addr is NULL\n", __func__);
+
+	ret = msm_set_pinctrl(pinctrl_info, STATE_MI2S_ACTIVE);
+	if (ret) {
+		pr_err("%s: MI2S TLMM pinctrl set failed with %d\n",
+			__func__, ret);
+		return ret;
+	}
+	mi2s_tx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ;
+	mi2s_tx_clk.clk_set_mode = Q6AFE_LPASS_MODE_CLK1_VALID;
+	ret = afe_set_lpass_clock(AFE_PORT_ID_PRIMARY_MI2S_TX,
+				&mi2s_tx_clk);
+	if (ret < 0) {
+		pr_err("%s: afe lpass clock failed, err:%d\n", __func__, ret);
+		goto err;
+	}
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0)
+		pr_err("%s: set fmt cpu dai failed, err:%d\n", __func__, ret);
+err:
+	return ret;
+}
+
+static void msm8994_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct msm8994_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	struct msm_pinctrl_info *pinctrl_info = &pdata->pinctrl_info;
+	int ret = 0;
+
+	pr_debug("%s: substream = %s  stream = %d\n", __func__,
+		substream->name, substream->stream);
+
+	mi2s_tx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_DISABLE;
+	mi2s_tx_clk.clk_set_mode = Q6AFE_LPASS_MODE_CLK1_VALID;
+	ret = afe_set_lpass_clock(AFE_PORT_ID_PRIMARY_MI2S_TX,
+				&mi2s_tx_clk);
+	if (ret < 0)
+		pr_err("%s: afe lpass clock failed, err:%d\n", __func__, ret);
+
+	ret = msm_reset_pinctrl(pinctrl_info, STATE_MI2S_ACTIVE);
+	if (ret)
+		pr_err("%s: Reset pinctrl failed with %d\n",
+			__func__, ret);
+}
+#endif
+
 #ifdef VENDOR_EDIT
  /* add begin by zhiguang.su@MultiMedia.AudioDrv on 2015-03-11,add for enable i2s */
 static int msm_rx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -2190,8 +2279,6 @@ static int msm_be_quat_mi2s_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
  /* add end by zhiguang.su@MultiMedia.AudioDrv on 2015-03-11,add for enable i2s */
 #endif
-
-
 static struct snd_soc_ops msm8994_mi2s_be_ops = {
 #ifndef VENDOR_EDIT
  .startup = msm8994_mi2s_snd_startup,
@@ -2731,21 +2818,21 @@ static void *def_codec_mbhc_cal(void)
 	btn_high = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg,
 					       MBHC_BTN_DET_V_BTN_HIGH);
 	btn_low[0] = -50;
-	btn_high[0] = 20;
-	btn_low[1] = 21;
-	btn_high[1] = 61;
-	btn_low[2] = 62;
-	btn_high[2] = 104;
-	btn_low[3] = 105;
-	btn_high[3] = 148;
-	btn_low[4] = 149;
-	btn_high[4] = 189;
-	btn_low[5] = 190;
-	btn_high[5] = 228;
-	btn_low[6] = 229;
-	btn_high[6] = 269;
-	btn_low[7] = 270;
-	btn_high[7] = 500;
+	btn_high[0] = 90;
+	btn_low[1] = 130;
+	btn_high[1] = 220;
+	btn_low[2] = 235;
+	btn_high[2] = 335;
+	btn_low[3] = 375;
+	btn_high[3] = 655;
+	btn_low[4] = 656;
+	btn_high[4] = 660;
+	btn_low[5] = 661;
+	btn_high[5] = 670;
+	btn_low[6] = 671;
+	btn_high[6] = 680;
+	btn_low[7] = 681;
+	btn_high[7] = 690;
 	n_ready = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_N_READY);
 	n_ready[0] = 80;
 	n_ready[1] = 68;
@@ -2816,14 +2903,14 @@ static void *def_codec_mbhc_cal(void)
 	btn_low[2] = 78;
 	btn_high[2] = 79;
 	btn_low[3] = 80;
-	btn_high[3] = 263;
-	btn_low[4] = 264;
-	btn_high[4] = 265;
-	btn_low[5] = 266;
-	btn_high[5] = 267;
-	btn_low[6] = 268;
-	btn_high[6] = 269;
-	btn_low[7] = 270;
+	btn_high[3] = 275;
+	btn_low[4] = 276;
+	btn_high[4] = 277;
+	btn_low[5] = 278;
+	btn_high[5] = 279;
+	btn_low[6] = 280;
+	btn_high[6] = 281;
+	btn_low[7] = 282;
 	btn_high[7] = 600; //kjr modify 500 to 600
 	n_ready = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_N_READY);
 	n_ready[0] = 80;
@@ -3258,7 +3345,7 @@ static struct snd_soc_dai_link msm8994_common_dai_links[] = {
 		.name = "MSM8994 Compr8",
 		.stream_name = "COMPR8",
 		.cpu_dai_name = "MultiMedia8",
-		.platform_name = "msm-compress-dsp",
+		.platform_name = "msm-compr-dsp",
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			 SND_SOC_DPCM_TRIGGER_POST},
@@ -3691,7 +3778,6 @@ static struct snd_soc_dai_link msm8994_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA3,
 	},
-
 	/* End of FE DAI LINK */
 	/* Backend FM DAI Links */
 	{

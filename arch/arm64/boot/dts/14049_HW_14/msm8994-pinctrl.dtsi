@@ -277,6 +277,104 @@
 			       bias-disable = <0>;
 		        };
 		};
+		/*--------------------TEE----------------------*/
+		fpc_spi_active {
+			qcom,pins = <&gp 85>, <&gp 86>, <&gp 88>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "fpc_spi_active";
+
+			fpc_spi_active: fpc_spi_active {
+			       drive-strength = <12>;
+			       bias-disable = <0>;
+		        };
+		};
+
+		fpc_spi_suspend {
+			qcom,pins = <&gp 85>, <&gp 86>, <&gp 88>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "fpc_spi_suspend";
+
+			fpc_spi_suspend: fpc_spi_suspend {
+			       drive-strength = <2>;
+			       bias-pull-down;
+		        };
+		};
+		
+		fpc_reset_reset {
+			qcom,pins = <&gp 89>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "fpc_reset_reset";
+
+			fpc_reset_reset: fpc_reset_reset {
+			       drive-strength = <12>;
+			       bias-disable = <0>;
+				   output-low;
+		        };
+		};
+		fpc_reset_active {
+			qcom,pins = <&gp 89>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "fpc_reset_active";
+
+			fpc_reset_active: fpc_reset_active {
+			       drive-strength = <12>;
+			       bias-disable = <0>;
+				   output-high;
+		        };
+		};
+		fpc_cs_low {
+			qcom,pins = <&gp 89>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "fpc_cs_low";
+
+			fpc_cs_low: fpc_cs_low {
+			       drive-strength = <2>;
+			       bias-disable = <0>;
+				   output-low;
+		        };
+		};
+		fpc_cs_high {
+			qcom,pins = <&gp 89>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "fpc_cs_high";
+
+			fpc_cs_high: fpc_cs_high {
+			       drive-strength = <12>;
+			       bias-disable = <0>;
+				   output-high;
+		        };
+		};
+		fpc_cs_active {
+			qcom,pins = <&gp 89>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "fpc_cs_active";
+
+			fpc_cs_active: fpc_cs_active {
+			       drive-strength = <12>;
+			       bias-disable = <0>;
+				   output-high;
+		        };
+		};
+		fpc_irq_active {
+			qcom,pins = <&gp 90>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "fpc_irq_active";
+
+			fpc_irq_active: fpc_irq_active {
+			       drive-strength = <2>;
+			       bias-disable = <0>;
+				   input-enable;
+		        };
+		};
+		/*--------------------TEE----------------------*/
 
 //#endif/*VENDOR_EDIT*/
 

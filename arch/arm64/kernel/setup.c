@@ -336,10 +336,9 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 	}
 
 	machine_name = of_flat_dt_get_machine_name();
-	if (machine_name) {
-		dump_stack_set_arch_desc("%s (DT)", machine_name);
+	dump_stack_set_arch_desc("%s (DT)", machine_name);
+	if (machine_name)
 		pr_info("Machine: %s\n", machine_name);
-	}
 }
 
 /*
@@ -509,8 +508,13 @@ static int c_show(struct seq_file *m, void *v)
 {
 	int i, j;
 
+       //shankai, 2016/1/9 , provide cpuinfo ,fixed the bug root master apk can
+       // not run .
+       #ifdef VENDOR_EDIT
 	seq_printf(m, "Processor\t: %s rev %d (%s)\n",
-		cpu_name, read_cpuid_id() & 15, ELF_PLATFORM);
+	cpu_name, read_cpuid_id() & 15, ELF_PLATFORM);
+       #endif
+
 	for_each_present_cpu(i) {
 		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
 		u32 midr = cpuinfo->reg_midr;
@@ -557,20 +561,17 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "vfpv4 idiva idivt ");
 	}
 #endif
+        //shankai, 2016/1/9 , provide cpuinfo ,fixed the bug root master apk can
+       // not run .
+       #ifdef VENDOR_EDIT
+	if (!arch_read_hardware_id)
+	seq_printf(m, "Hardware\t: %s\n", machine_name);
+	else
+	seq_printf(m, "Hardware\t: %s\n", arch_read_hardware_id());
 
-	seq_printf(m, "\nCPU implementer\t: 0x%02x\n", read_cpuid_id() >> 24);
-	seq_printf(m, "CPU architecture: 8\n");
-	seq_printf(m, "CPU variant\t: 0x%x\n", (read_cpuid_id() >> 20) & 15);
-	seq_printf(m, "CPU part\t: 0x%03x\n", (read_cpuid_id() >> 4) & 0xfff);
-	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);
-
-	seq_puts(m, "\n");
-
-//default use machine_name which contain cpu version info
-//	if (!arch_read_hardware_id)
-		seq_printf(m, "Hardware\t: %s\n", machine_name);
-//	else
-//		seq_printf(m, "Hardware\t: %s\n", arch_read_hardware_id());
+	seq_printf(m, "Processor\t: %s rev %d (%s)\n",
+	cpu_name, read_cpuid_id() & 15, ELF_PLATFORM);
+       #endif
 
 	return 0;
 }

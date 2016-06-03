@@ -2398,7 +2398,6 @@ static int dwc3_msm_power_set_property_usb(struct power_supply *psy,
 		if (mdwc->charger.chg_type != DWC3_INVALID_CHARGER)
 			mdwc->chg_state = USB_CHG_STATE_DETECTED;
 
-
 		dev_info(mdwc->dev, "%s: charger type: %s\n", __func__,
 				chg_to_string(mdwc->charger.chg_type));
 		break;
@@ -2458,6 +2457,7 @@ dwc3_msm_property_is_writeable(struct power_supply *psy,
 static char *dwc3_msm_pm_power_supplied_to[] = {
 	"battery",
 	"bms",
+	"bcl",
 };
 
 static enum power_supply_property dwc3_msm_pm_power_props_usb[] = {

@@ -169,7 +169,6 @@ obj-$(CONFIG_ESOC)		+= esoc/
 obj-$(CONFIG_BIF)		+= bif/
 obj-$(CONFIG_SENSORS)		+= sensors/
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
-
 #ifdef VENDOR_EDIT
 # hefaxi@filesystem,2015/05/05,support param partion read/write
 obj-y 	+= param_read_write/
@@ -180,3 +179,8 @@ obj-y 	+= param_read_write/
 obj-$(CONFIG_OEM_DEBUG_SUPORT) 	+= oem_debug/
 #endif
 #end add by jiachenghui for support oem trace,2015/05/09
+
+#ifdef VENDOR_EDIT
+#ted_lin@PerfLab add for op helper function
+obj-y += op/
+#endif

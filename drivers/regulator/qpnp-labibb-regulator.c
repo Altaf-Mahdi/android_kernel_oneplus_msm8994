@@ -885,9 +885,9 @@ static int qpnp_labibb_regulator_disable(struct qpnp_labibb *labibb)
 		return -EINVAL;
 	}
 #ifdef VENDOR_EDIT
-	/*add by qualcomm provide the patch in 2015-03-02 guozhiming@oem.cn add*/	
-	rc = qpnp_labibb_write(labibb,	
-	labibb->lab_base + REG_LAB_ENABLE_CTL, &val, 1);	
+	/*add by qualcomm provide the patch in 2015-03-02 guozhiming@oem.cn add*/
+	rc = qpnp_labibb_write(labibb,
+	labibb->lab_base + REG_LAB_ENABLE_CTL, &val, 1);
 #endif
 
 	labibb->lab_vreg.vreg_enabled = 0;

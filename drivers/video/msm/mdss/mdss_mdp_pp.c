@@ -2221,6 +2221,20 @@ void mdss_mdp_pp_term(struct device *dev)
 	}
 }
 
+int mdss_mdp_pp_override_pu(int enable)
+{
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+
+	if (!mdata)
+		return -EPERM;
+
+	if ((enable != MDP_PP_ENABLE) && (enable != MDP_PP_DISABLE))
+		return -EINVAL;
+
+	mdata->pp_enable = enable;
+	return 0;
+}
+
 int mdss_mdp_pp_overlay_init(struct msm_fb_data_type *mfd)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
@@ -2812,6 +2826,7 @@ int mdss_mdp_user_pcc_config(struct mdp_pcc_cfg_data *config)
 	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
+
 
 int mdss_mdp_pcc_config(struct mdp_pcc_cfg_data *config,
 					u32 *copyback)

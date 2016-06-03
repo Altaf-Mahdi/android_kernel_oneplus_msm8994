@@ -73,13 +73,14 @@ static const struct mmc_fixup mmc_fixups[] = {
 
 	END_FIXUP
 };
+
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
 static int mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
-	char *manufactureid;
+        char *manufactureid;
 
 	/*
 	 * The selection of the format here is based upon published
@@ -126,26 +127,26 @@ static int mmc_decode_cid(struct mmc_card *card)
 		return -EINVAL;
 	}
 #ifdef VENDOR_EDIT
-	//push emmc card information, added by liwei
-	if(!strncmp(mmc_hostname(card->host),"mmc0",4)){
-		switch(card->cid.manfid){
-			case 0x11:
-				manufactureid = "TOSHIBA";
-				break;
-			case 0x15:
-				manufactureid = "SAMSUNG";
-				break;
-			case 0x45:
-				manufactureid = "SANDISK";
-				break;
-			default:
-				manufactureid = "unknown";
-				break;
-		}
-		push_component_info(EMMC, manufactureid, card->cid.prod_name);
-	}
-	//end by liwei for pushing emmc card information
+        //liochen,2015/12/09,Push emmc card information
+        if(!strncmp(mmc_hostname(card->host),"mmc0",4)){
+                switch(card->cid.manfid){
+                        case 0x11:
+                                manufactureid = "TOSHIBA";
+                                break;
+                        case 0x15:
+                                manufactureid = "SAMSUNG";
+                                break;
+                        case 0x45:
+                                manufactureid = "SANDISK";
+                                break;
+                        default:
+                                manufactureid = "unknown";
+                                break;
+                }
+                push_component_info(EMMC, manufactureid, card->cid.prod_name);
+        }
 #endif /*VENDOR_EDIT*/
+
 
 	return 0;
 }

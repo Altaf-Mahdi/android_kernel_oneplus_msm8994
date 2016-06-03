@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/iopoll.h>
 #include <linux/kthread.h>
-
+#include <linux/time.h>
 #include <linux/msm_iommu_domains.h>
 
 #include "mdss.h"
@@ -29,7 +29,8 @@
 #include "mdss_debug.h"
 
 #define VSYNC_PERIOD 17
-#define DMA_TX_TIMEOUT 200
+//#define DMA_TX_TIMEOUT 200
+#define DMA_TX_TIMEOUT 400 //qualcomm add patch for the lcd 2015-04-18
 #define DMA_TPG_FIFO_LEN 64
 
 struct mdss_dsi_ctrl_pdata *ctrl_list[DSI_CTRL_MAX];
@@ -1312,25 +1313,6 @@ static int mdss_dsi_cmd_dma_tpg_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	ret = wait_for_completion_timeout(&ctrl->dma_comp,
 				msecs_to_jiffies(DMA_TX_TIMEOUT));
-
-	if (ret <= 0) {
-		u32 reg_val, status, mask;
-
-		reg_val = MIPI_INP(ctrl->ctrl_base + 0x0110);/* DSI_INTR_CTRL */
-		mask = reg_val & DSI_INTR_CMD_DMA_DONE_MASK;
-		status = mask & reg_val;
-		if (status) {
-			pr_warn("dma tx done but irq not triggered\n");
-			reg_val &= DSI_INTR_MASK_ALL;
-			/* clear CMD DMA isr only */
-			reg_val |= DSI_INTR_CMD_DMA_DONE;
-			MIPI_OUTP(ctrl->ctrl_base + 0x0110, reg_val);
-			mdss_dsi_disable_irq_nosync(ctrl, DSI_MDP_TERM);
-			complete(&ctrl->dma_comp);
-			ret = 1;
-		}
-	}
-
 	if (ret == 0)
 		ret = -ETIMEDOUT;
 	else
@@ -1364,6 +1346,7 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct dsi_cmd_desc *cm;
 	struct dsi_ctrl_hdr *dchdr;
 	int len, wait, tot = 0;
+	struct timespec now_ts;
 
 	tp = &ctrl->tx_buf;
 	mdss_dsi_buf_init(tp);
@@ -1384,6 +1367,13 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 			wait = mdss_dsi_wait4video_eng_busy(ctrl);
 
+			get_monotonic_boottime(&now_ts);
+			if (timespec_compare(&ctrl->wait_until_ts, &now_ts) > 0) {
+				const struct timespec diff_ts =
+					timespec_sub(ctrl->wait_until_ts, now_ts);
+				usleep(timespec_to_ns(&diff_ts) / NSEC_PER_USEC);
+			}
+
 			mdss_dsi_enable_irq(ctrl, DSI_CMD_TERM);
 			if (use_dma_tpg)
 				len = mdss_dsi_cmd_dma_tpg_tx(ctrl, tp);
@@ -1398,8 +1388,11 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 			pr_debug("%s: cmd_dma_tx for cmd = 0x%x, len = %d\n",
 					__func__,  cm->payload[0], len);
 
-			if (!wait || dchdr->wait > VSYNC_PERIOD)
-				usleep(dchdr->wait * 1000);
+			if (!wait || dchdr->wait > VSYNC_PERIOD) {
+				get_monotonic_boottime(&ctrl->wait_until_ts);
+				timespec_add_ns(&ctrl->wait_until_ts,
+						dchdr->wait * NSEC_PER_MSEC);
+			}
 
 			mdss_dsi_buf_init(tp);
 			len = 0;
@@ -1755,6 +1748,10 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct mdss_dsi_ctrl_pdata *mctrl = NULL;
 	int ignored = 0;	/* overflow ignored */
 
+        #ifdef VENDOR_EDIT /*Qualcomm add patch for iommu error issue in 2015-09-02*/
+        int iommu_attached = 0;
+        #endif
+
 	bp = tp->data;
 
 	len = ALIGN(tp->len, 4);
@@ -1772,6 +1769,11 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 			return -ENOMEM;
 		}
 		ctrl->dmap_iommu_map = true;
+
+        #ifdef VENDOR_EDIT /*Qualcomm add patch for iommu error issue in 2015-09-02*/
+           iommu_attached = 1;
+        #endif
+
 	} else {
 		ctrl->dma_addr = tp->dmap;
 	}
@@ -1849,7 +1851,11 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 			/* restore overflow isr */
 			mdss_dsi_set_reg(mctrl, 0x10c, 0x0f0000, 0);
 		}
-		if (mctrl->dmap_iommu_map) {
+        #ifdef VENDOR_EDIT /*Qualcomm add patch for iommu error issue in 2015-09-02*/
+          // if (mctrl->dmap_iommu_map) 
+             if (ctrl->dmap_iommu_map && (iommu_attached == 1))
+        #endif 
+		 {
 			msm_iommu_unmap_contig_buffer(mctrl->dma_addr,
 				mctrl->mdss_util->get_iommu_domain(domain),
 							0, mctrl->dma_size);
@@ -2056,6 +2062,10 @@ void mdss_dsi_cmd_mdp_start(struct mdss_dsi_ctrl_pdata *ctrl)
 	spin_unlock_irqrestore(&ctrl->mdp_lock, flag);
 }
 
+#if 0
+#ifdef VENDOR_EDIT  //qualcomm modify for lcd crash 2015-04-18
+
+//qualcomm provide patch   2015-04-18
 static int mdss_dsi_mdp_busy_tout_check(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	unsigned long flag;
@@ -2086,7 +2096,55 @@ static int mdss_dsi_mdp_busy_tout_check(struct mdss_dsi_ctrl_pdata *ctrl)
 			stop_hs_clk = true;
 		}
 		tout = 0;	/* recovered */
-	}
+        } 
+
+        spin_unlock_irqrestore(&ctrl->mdp_lock, flag);
+
+        if (stop_hs_clk)
+            mdss_dsi_stop_hs_clk_lane(ctrl);
+
+        complete_all(&ctrl->mdp_comp);
+
+        mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
+
+        return tout;
+}
+#endif
+#endif
+//qualcomm modify for lcd crash 2015-04-22
+
+static int mdss_dsi_mdp_busy_tout_check(struct mdss_dsi_ctrl_pdata *ctrl)
+ {
+       unsigned long flag;
+       u32 isr;
+       bool stop_hs_clk = false;
+       int tout = 1;
+
+       /*
+        * two possible scenario:
+        * 1) DSI_INTR_CMD_MDP_DONE set but isr not fired
+        * 2) DSI_INTR_CMD_MDP_DONE set and cleared (isr fired)
+        * but event_thread not wakeup
+        */
+       mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
+       spin_lock_irqsave(&ctrl->mdp_lock, flag);
+
+       isr = MIPI_INP(ctrl->ctrl_base + 0x0110);
+       if (isr & DSI_INTR_CMD_MDP_DONE) {
+             WARN(1, "INTR_CMD_MDP_DONE set but isr not fired\n");
+             isr &= DSI_INTR_MASK_ALL;
+             isr |= DSI_INTR_CMD_MDP_DONE; /* clear this isr only */
+             MIPI_OUTP(ctrl->ctrl_base + 0x0110, isr);
+             mdss_dsi_disable_irq_nosync(ctrl, DSI_MDP_TERM);
+             ctrl->mdp_busy = false;
+             complete_all(&ctrl->mdp_comp);
+             if (ctrl->cmd_clk_ln_recovery_en &&
+                         ctrl->panel_mode == DSI_CMD_MODE) {
+                   /* has hs_lane_recovery do the work */
+                   stop_hs_clk = true;
+             }
+             tout = 0;     /* recovered */
+       }
 
 	spin_unlock_irqrestore(&ctrl->mdp_lock, flag);
 
@@ -2201,8 +2259,6 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 
 	req = mdss_dsi_cmdlist_get(ctrl);
 
-	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
-
 	MDSS_XLOG(ctrl->ndx, from_mdp, ctrl->mdp_busy, current->pid,
 							XLOG_FUNC_ENTRY);
 
@@ -2265,6 +2321,8 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 		}
 	}
 
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
+
 	if (req->flags & CMD_REQ_HS_MODE)
 		mdss_dsi_set_tx_power_mode(0, &ctrl->panel_data);
 
@@ -2286,6 +2344,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 			ctrl->mdss_util->bus_bandwidth_ctrl(0);
 	}
 
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
 need_lock:
 
 	MDSS_XLOG(ctrl->ndx, from_mdp, ctrl->mdp_busy, current->pid,
@@ -2310,7 +2369,6 @@ need_lock:
 			mdss_dsi_cmd_stop_hs_clk_lane(ctrl);
 	}
 
-	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
 	return ret;
 }
 
@@ -2345,7 +2403,12 @@ static int dsi_event_thread(void *data)
 	u32 arg;
 	int ret;
 
+	#ifndef VENDOR_EDIT  //qualcomm modify for lcd crash 2015-04-18
 	param.sched_priority = 16;
+	#else
+	param.sched_priority = 17;
+	#endif
+
 	ret = sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	if (ret)
 		pr_err("%s: set priority failed\n", __func__);

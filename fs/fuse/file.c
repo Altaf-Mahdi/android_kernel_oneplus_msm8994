@@ -20,7 +20,7 @@
 #include <linux/falloc.h>
 
 #ifdef VENDOR_EDIT
-//hefaxi@filesystems, 2015/06/17, add for reserved memory
+//liochen@filesystems, 2016/01/04, add for reserved memory
 #include <linux/statfs.h>
 #include <linux/namei.h>
 #endif
@@ -1247,7 +1247,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	loff_t endbyte = 0;
 
 #ifdef VENDOR_EDIT
-//hefaxi@filesystems, 2015/06/17, add for reserved memory
+//liochen@filesystems, 2016/01/04, add for reserved memory
 	struct kstatfs statfs;
 	u64 avail;
 	size_t size;
@@ -1283,8 +1283,6 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				err = vfs_statfs(&file->f_path, &statfs);
 				if (unlikely(err))
 				{
-					printk(KERN_ERR "statfs file path error(%d)\n",
-						(int)err);
 					path_put(&data_partition_path);
 					return err;
 				}
@@ -1303,11 +1301,6 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		size = iov_length(iov, nr_segs);
 
 		if ((u64)size > avail) {
-			printk(KERN_INFO "No space left on fuse.\n");
-			printk(KERN_INFO "statfs.f_bavail : %llu blocks / "
-				"statfs.f_bsize : %ld bytes / "
-				"required size : %llu byte\n",
-				statfs.f_bavail, statfs.f_bsize, (u64)size);
 			return -ENOSPC;
 		}
 	}

@@ -334,10 +334,11 @@ struct device_node *of_batterydata_get_best_profile(
 		pr_err("failed to retrieve resistance value rc=%d\n", rc);
 		return ERR_PTR(-ENOSYS);
 	}
+
 #ifdef VENDOR_EDIT
 	batt_id_kohm = ret.intval ;
 #else
-    batt_id_kohm = ret.intval / 1000;
+	batt_id_kohm = ret.intval / 1000;
 #endif
 
 	/* read battery id range percentage for best profile */
@@ -374,12 +375,10 @@ struct device_node *of_batterydata_get_best_profile(
 			for (i = 0; i < batt_ids.num; i++) {
 #ifdef VENDOR_EDIT
 				delta = abs(batt_ids.kohm[i]*1000 - batt_id_kohm);
-                limit = (batt_ids.kohm[i]*1000 * id_range_pct)/100 ;
-
+				limit = (batt_ids.kohm[i]*1000 * id_range_pct)/100 ;
 #else
-                delta = abs(batt_ids.kohm[i] - batt_id_kohm);
-                limit = (batt_ids.kohm[i] * id_range_pct) / 100;
-
+				delta = abs(batt_ids.kohm[i] - batt_id_kohm);
+				limit = (batt_ids.kohm[i] * id_range_pct) / 100;
 #endif
 				in_range = (delta <= limit);
 				/*
@@ -399,14 +398,13 @@ struct device_node *of_batterydata_get_best_profile(
 #ifdef VENDOR_EDIT
 	if (best_node == NULL) {
 		pr_err("Go to set default battery cure\n");
-		for_each_child_of_node(batterydata_container_node, node){
-		rc = of_property_read_string(node, "qcom,battery-type",
-							&battery_type);
+		for_each_child_of_node(batterydata_container_node, node) {
+			rc = of_property_read_string(node, "qcom,battery-type",
+									&battery_type);
 			if (!rc && strcmp(battery_type, "Unknown Battery") == 0) {
 				best_node = node;
 				return best_node;
 			}
-
 		}
 	}
 #else
@@ -416,17 +414,14 @@ struct device_node *of_batterydata_get_best_profile(
 	}
 #endif
 #ifdef VENDOR_EDIT
-/* check that profile id is in range of the measured batt_id */
-if (abs(best_id_kohm*1000 - batt_id_kohm) >
-		((best_id_kohm*1000 * id_range_pct) / 100)) {
-	pr_err("out of range: profile id %d batt id %d pct %d",
-		best_id_kohm, batt_id_kohm, id_range_pct);
-	return NULL;
-}
-
-
+	/* check that profile id is in range of the measured batt_id */
+	if (abs(best_id_kohm*1000 - batt_id_kohm) >
+			((best_id_kohm*1000 * id_range_pct) / 100)) {
+		pr_err("out of range: profile id %d batt id %d pct %d",
+			best_id_kohm, batt_id_kohm, id_range_pct);
+		return NULL;
+	}
 #else
-
 
 	/* check that profile id is in range of the measured batt_id */
 	if (abs(best_id_kohm - batt_id_kohm) >

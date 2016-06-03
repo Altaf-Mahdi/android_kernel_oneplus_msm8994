@@ -84,6 +84,10 @@
  static unsigned int tp_debug = 0;
 static int force_update = 0;
 static int key_reverse = 0;
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/29, add flag to enable virtual key
+bool virtual_key_enable = false;
+EXPORT_SYMBOL(virtual_key_enable);
+#endif
 static struct synaptics_ts_data *tc_g = NULL;
 int test_err = 0;
 
@@ -164,9 +168,6 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 #endif
 static int synaptics_soft_reset(struct synaptics_ts_data *ts);
 static void synaptics_hard_reset(struct synaptics_ts_data *ts);
-
-extern unsigned int enable_keys;
-extern unsigned int nav_switch;
 
 /*-------------------------------Using Struct----------------------------------*/
 static const struct i2c_device_id synaptics_ts_id[] = {
@@ -666,16 +667,30 @@ static int synaptics_rmi4_i2c_write_word(struct i2c_client* client,
 }
 */
 static char log_count = 0;
+#ifdef VENDOR_EDIT //WayneChang, 2015/11/13, Change MENU key to APPSELECT key
+#define REP_KEY_APPSELECT (key_reverse?(KEY_BACK):(KEY_APPSELECT))
+#define REP_KEY_BACK (key_reverse?(KEY_APPSELECT):(KEY_BACK))
+#else
 #define REP_KEY_MENU (key_reverse?(KEY_BACK):(KEY_MENU))
 #define REP_KEY_BACK (key_reverse?(KEY_MENU):(KEY_BACK))
+#endif
+
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
+struct completion key_cm;
+bool key_appselect_pressed = false;
+bool key_back_pressed = false;
+EXPORT_SYMBOL(key_appselect_pressed);
+EXPORT_SYMBOL(key_back_pressed);
+EXPORT_SYMBOL(key_cm);
+
+extern void int_touch(void);
+#endif
+
 static void int_key(struct synaptics_ts_data *ts )
 {
 
     int ret;
     int button_key;
-
-    if (!nav_switch || !enable_keys)
-        return;
 
     ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x02 );
     if (ret < 0) {
@@ -698,10 +713,10 @@ static void int_key(struct synaptics_ts_data *ts )
 
     if((button_key & 0x02) && !(ts->pre_btn_state & 0x02))//menu
     {
-        input_report_key(ts->input_dev, REP_KEY_MENU, 1);
+        input_report_key(ts->input_dev, REP_KEY_APPSELECT, 1);
         input_sync(ts->input_dev);
     }else if(!(button_key & 0x02) && (ts->pre_btn_state & 0x02)){
-        input_report_key(ts->input_dev, REP_KEY_MENU, 0);
+        input_report_key(ts->input_dev, REP_KEY_APPSELECT, 0);
         input_sync(ts->input_dev);
     }
 
@@ -713,9 +728,8 @@ static void int_key(struct synaptics_ts_data *ts )
         input_report_key(ts->input_dev, KEY_HOMEPAGE, 0);
         input_sync(ts->input_dev);
     }
-
     ts->pre_btn_state = button_key & 0x07;
-	//input_sync(ts->input_dev);
+    //input_sync(ts->input_dev);
     ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x00);
     if (ret < 0) {
         TPD_ERR("%s: Failed to change page 2!!\n",
@@ -724,6 +738,68 @@ static void int_key(struct synaptics_ts_data *ts )
     }
     return;
 }
+
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/29, add flag to enable virtual key
+static void int_virtual_key(struct synaptics_ts_data *ts )
+{
+
+    int ret;
+    int button_key;
+    long time =0 ;
+    bool key_up_report = false;
+
+    ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x02 );
+    if (ret < 0) {
+        TPD_ERR("%s: Failed to change page 2!!\n",
+                __func__);
+        return;
+    }
+
+    button_key = synaptics_rmi4_i2c_read_byte(ts->client,0x00);
+    if (6 == (++log_count % 12))
+        printk("%s	button_key:%d   pre_btn_state:%d\n",__func__,button_key,ts->pre_btn_state);
+    if((button_key & 0x01) && !(ts->pre_btn_state & 0x01))//back
+    {
+	key_back_pressed = true;
+    }else if(!(button_key & 0x01) && (ts->pre_btn_state & 0x01)){
+	key_back_pressed = false;
+	key_up_report = true;
+    }
+
+    if((button_key & 0x02) && !(ts->pre_btn_state & 0x02))//menu
+    {
+	key_appselect_pressed = true;
+    }else if(!(button_key & 0x02) && (ts->pre_btn_state & 0x02)){
+	key_appselect_pressed = false;
+	key_up_report = true;
+    }
+
+    if((button_key & 0x04) && !(ts->pre_btn_state & 0x04))//home
+    {
+        input_report_key(ts->input_dev, KEY_HOMEPAGE, 1);//KEY_HOMEPAGE
+        input_sync(ts->input_dev);
+    }else if(!(button_key & 0x04) && (ts->pre_btn_state & 0x04)){
+        input_report_key(ts->input_dev, KEY_HOMEPAGE, 0);
+        input_sync(ts->input_dev);
+    }
+    if(key_up_report){
+        INIT_COMPLETION(key_cm);
+        time = wait_for_completion_timeout(&key_cm,msecs_to_jiffies(60));
+        if (!time)
+            int_touch();
+    }else{
+        int_touch();
+    }
+    ts->pre_btn_state = button_key & 0x07;
+    ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x00);
+    if (ret < 0) {
+        TPD_ERR("%s: Failed to change page 2!!\n",
+                __func__);
+        return;
+    }
+    return;
+}
+#endif
 
 static void synaptics_ts_report(struct synaptics_ts_data *ts )
 {
@@ -748,7 +824,16 @@ static void synaptics_ts_report(struct synaptics_ts_data *ts )
         //goto END;
     }
     if( inte & 0x10) {
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/29, add flag to enable virtual key
+		if(virtual_key_enable){
+            int_virtual_key(ts);
+        }
+		else{
+			int_key(ts);
+        }
+#else
         int_key(ts);
+#endif
     }
 END:
 	return;
@@ -778,7 +863,11 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	set_bit(EV_SYN, ts->input_dev->evbit);
 	set_bit(EV_KEY, ts->input_dev->evbit);
 	set_bit(KEY_BACK, ts->input_dev->keybit);
+#ifdef VENDOR_EDIT //WayneChang, 2015/11/13, Change MENU key to APPSELECT key
+    set_bit(KEY_APPSELECT, ts->input_dev->keybit);
+#else
 	set_bit(KEY_MENU, ts->input_dev->keybit);
+#endif
 	set_bit(KEY_HOMEPAGE, ts->input_dev->keybit);
 	input_set_drvdata(ts->input_dev, ts);
 
@@ -924,6 +1013,49 @@ const struct file_operations proc_reverse_key =
 	.llseek 	= seq_lseek,
 	.release	= single_release,
 };
+
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/29, add flag to enable virtual key
+static ssize_t synaptics_s1302_virtual_key_enable_write(struct file *file, const char __user *page, size_t t, loff_t *lo)
+{
+	int ret = 0;
+	char buf[10];
+
+	if( t > 2)
+		return t;
+	if( copy_from_user(buf, page, t) ){
+		TPD_ERR("%s: read proc input error.\n", __func__);
+		return t;
+	}
+
+	sscanf(buf, "%d", &ret);
+    TPD_ERR("%s virtual key :%d\n",__func__,ret);
+	if( ret == 0 ){
+        virtual_key_enable = false;
+    }else{
+        virtual_key_enable = true;
+    }
+    return t;
+}
+static int synaptics_s1302_virtual_key_enable_show(struct seq_file *seq, void *offset)
+{
+    seq_printf(seq, "s1302 virtual key %s\n",virtual_key_enable?("enabled"):("disabled"));
+    return 0 ;
+}
+static int synaptics_s1302_virtual_key_enable_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, synaptics_s1302_virtual_key_enable_show, inode->i_private);
+}
+const struct file_operations proc_virtual_key =
+{
+	.owner		= THIS_MODULE,
+	.open		= synaptics_s1302_virtual_key_enable_open,
+	.read		= seq_read,
+	.write      = synaptics_s1302_virtual_key_enable_write,
+	.llseek 	= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
 static int page ,address,block;
 static int synaptics_s1302_radd_show(struct seq_file *seq, void *offset)
 {
@@ -1075,6 +1207,7 @@ static int synaptics_s1302_proc(void)
     //for firmware version
     proc_entry = proc_create_data("fw_update", 0444, procdir,&proc_firmware_update,NULL);
     proc_entry = proc_create_data("key_rep", 0666, procdir,&proc_reverse_key,NULL);
+	proc_entry = proc_create_data("virtual_key", 0666, procdir,&proc_virtual_key,NULL);
     proc_entry = proc_create_data("radd", 0666, procdir,&proc_radd,NULL);
     proc_entry = proc_create_data("reset", 0666, procdir,&proc_reset,NULL);
     proc_entry = proc_create_data("debug", 0666, procdir,&proc_debug,NULL);
@@ -1478,6 +1611,9 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 
 	synaptics_parse_dts(&client->dev, ts);
 
+#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
+        init_completion(&key_cm);
+#endif
 	mutex_init(&ts->mutex);
 	synaptics_s1302_proc();
 	ts->is_suspended = 0;

@@ -43,6 +43,13 @@
 #define SCM_EDLOAD_MODE			0X01
 #define SCM_DLOAD_CMD			0x10
 
+#ifdef VENDOR_EDIT
+/*Define a global pointer which points to the boot shared imem cookie structure */
+struct boot_shared_imem_cookie_type *boot_shared_imem_cookie_ptr;
+extern phys_addr_t ram_console_address_start;
+extern ssize_t ram_console_address_size;
+#endif /* VENDOR_EDIT */
+
 
 static int restart_mode;
 void *restart_reason;
@@ -119,6 +126,13 @@ static void set_dload_mode(int on)
 	pr_info("Set dload mode:%s\n",on?"true":"false");
 #endif/*ifdef VENDOR_EDIT*/
 	if (dload_mode_addr) {
+#ifdef VENDOR_EDIT
+		boot_shared_imem_cookie_ptr = (struct boot_shared_imem_cookie_type *) dload_mode_addr;
+		__raw_writel(on ? ram_console_address_start : 0, &(boot_shared_imem_cookie_ptr->kmsg_address_start));
+		__raw_writel(on ? ram_console_address_size : 0, &(boot_shared_imem_cookie_ptr->kmsg_address_size));
+		__raw_writel(on ? virt_to_phys(linux_banner) : 0, &(boot_shared_imem_cookie_ptr->kernel_version));
+		__raw_writel(on ? strlen(linux_banner) : 0, &(boot_shared_imem_cookie_ptr->kernel_version_len));
+#endif /* VENDOR_EDIT */
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
 		__raw_writel(on ? 0xCE14091A : 0,
 		       dload_mode_addr + sizeof(unsigned int));
@@ -275,7 +289,13 @@ static void msm_restart_prepare(const char *cmd)
 			strcmp(cmd, "keys clear")))
 			need_warm_reset = true;
 	}
-
+#ifdef VENDOR_EDIT
+/* add by yangrujin@bsp 2015/10/27, warm reboot for wlan/rf/ftm/kernel/modem/android mode*/
+    if(!need_warm_reset){
+        need_warm_reset = get_dload_mode() ||((cmd != NULL && cmd[0] != '\0') && strcmp(cmd, "recovery") &&
+            strcmp(cmd, "bootloader") && strcmp(cmd, "rtc"));
+    }
+#endif
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
@@ -318,6 +338,31 @@ static void msm_restart_prepare(const char *cmd)
 
 #else
 	if (cmd != NULL) {
+#ifdef VENDOR_EDIT
+/* add by yangrujin@bsp 2015/10/27, set warm reboot magic for wlan/rf/ftm/kernel/modem/android mode*/
+        if (!strncmp(cmd, "rf", 2)) {
+            //qpnp_pon_set_restart_reason(PON_RESTART_REASON_RF_MODE);
+	        __raw_writel(RF_MODE, restart_reason);
+	    }else if(!strncmp(cmd, "wlan", 4)){
+	        //qpnp_pon_set_restart_reason(PON_RESTART_REASON_WLAN_MODE);
+	        __raw_writel(WLAN_MODE, restart_reason);
+	    }else if(!strncmp(cmd, "mos", 3)) {
+	        //qpnp_pon_set_restart_reason(PON_RESTART_REASON_MOS_MODE);
+	        __raw_writel(MOS_MODE, restart_reason);
+	    }else if(!strncmp(cmd, "ftm", 3)) {
+	        //qpnp_pon_set_restart_reason(PON_RESTART_REASON_FACTORY_MODE);
+	        __raw_writel(FACTORY_MODE, restart_reason);
+	    }else if(!strncmp(cmd, "kernel", 6)) {
+	        //qpnp_pon_set_restart_reason(PON_RESTART_REASON_KERNEL);
+	        __raw_writel(KERNEL_MODE, restart_reason);
+	    }else if (!strncmp(cmd, "modem", 5)) {
+	        //qpnp_pon_set_restart_reason(PON_RESTART_REASON_MODEM);
+	        __raw_writel(MODEM_MODE, restart_reason);
+	    }else if (!strncmp(cmd, "android", 7)) {
+	        //qpnp_pon_set_restart_reason(PON_RESTART_REASON_ANDROID);
+	        __raw_writel(ANDROID_MODE, restart_reason);
+	    }else
+#endif
 		if (!strncmp(cmd, "bootloader", 10)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_BOOTLOADER);
