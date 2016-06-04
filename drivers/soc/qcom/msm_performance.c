@@ -174,10 +174,6 @@ static int set_max_cpus(const char *buf, const struct kernel_param *kp)
 	unsigned int i, ntokens = 0;
 	const char *cp = buf;
 	int val;
-	int msm_perf = strcmp(current->comm, "perfd");
-
-	if (msm_perf == 0)
-		return -EINVAL;
 
 	if (!clusters_inited)
 		return -EINVAL;
