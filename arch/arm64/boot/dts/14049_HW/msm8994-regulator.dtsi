@@ -316,9 +316,6 @@
 			regulator-min-microvolt = <2950000>;
 			regulator-max-microvolt = <2950000>;
 			qcom,init-voltage = <2950000>;
-//#ifdef VENDOR_EDIT //changhua modify for cover
-			regulator-always-on;
-//#endif
 			status = "okay";
 		};
 	};
