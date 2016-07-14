@@ -2041,8 +2041,8 @@ static int ipa_wwan_remove(struct platform_device *pdev)
 	wwan_del_ul_flt_rule_to_ipa();
 	/* clean up cached QMI msg/handlers */
 	ipa_qmi_service_exit();
-	/*if (ipa_qmi_ctx->modem_cfg_emb_pipe_flt == false)
-		wwan_del_ul_flt_rule_to_ipa();*/
+	if (ipa_qmi_ctx->modem_cfg_emb_pipe_flt == false)
+		wwan_del_ul_flt_rule_to_ipa();
 	ipa_cleanup_deregister_intf();
 	atomic_set(&is_initialized, 0);
 	pr_info("rmnet_ipa completed deinitialization\n");
